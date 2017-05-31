@@ -24,9 +24,21 @@
     <artifactId>apache</artifactId>
     <version>14</version>
   </parent>
-  <groupId>org.apache.spark</groupId>
+  <groupId>com.stratio.spark</groupId>
   <artifactId>spark-parent_2.11</artifactId>
   <version>2.1.0</version>
+  <distributionManagement>
+    <repository>
+      <id>releases</id>
+      <name>Stratio releases</name>
+      <url>http://sodio.stratio.com/repository/releases/</url>
+    </repository>
+    <snapshotRepository>
+      <id>snapshots</id>
+      <name>Stratio snapshots</name>
+      <url>http://sodio.stratio.com/repository/snapshots/</url>
+    </snapshotRepository>
+  </distributionManagement>
   <packaging>pom</packaging>
   <name>Spark Project Parent POM</name>
   <url>http://spark.apache.org/</url>
