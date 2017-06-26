@@ -116,7 +116,8 @@ private[mesos] class MesosSubmitRequestServlet(
         val temporalToken = VaultHelper.getTemporalToken(vaultUrl, vaultToken)
         logTrace(s"login in vault using app: $temporalToken and role: $role")
 
-        Map("spark.secret.vault.tempToken" -> temporalToken) ++ request.sparkProperties
+        Map("spark.secret.vault.tempToken" -> temporalToken,
+          "spark.mesos.driverEnv.VAULT_TEMP_TOKEN" -> temporalToken) ++ request.sparkProperties
           .filter(_._1 != "spark.secret.vault.token")
       }
       else {

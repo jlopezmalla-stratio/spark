@@ -655,8 +655,10 @@ object SparkSubmit {
     }
 
     val (pincipal, keytab) = if (
-      args.sparkProperties.get("spark.secret.vault.tempToken").isDefined) {
-      val vaultTempToken = args.sparkProperties.get("spark.secret.vault.tempToken")
+      args.sparkProperties.get("spark.secret.vault.tempToken").isDefined
+        || sys.env.get("VAULT_TEMP_TOKEN").isDefined) {
+      val vaultTempToken = Option(sys.env.get("VAULT_TEMP_TOKEN")
+        .getOrElse(args.sparkProperties("spark.secret.vault.tempToken")))
       val enviroment = ConfigSecurity.prepareEnviroment(vaultTempToken,
         args.sparkProperties.get("spark.secret.vault.host"))
       val principal = enviroment.get("principal").getOrElse(args.principal)

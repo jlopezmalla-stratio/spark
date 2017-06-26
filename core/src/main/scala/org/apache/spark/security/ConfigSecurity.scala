@@ -33,7 +33,7 @@ object ConfigSecurity extends Logging{
     vaultToken = if (vaultTempToken.isDefined) {
       if (!vaultHost.isDefined) vaultHost = vaulHost
       Option(VaultHelper.getRealToken(vaultHost.get, vaultTempToken.get))
-    } else Option(System.getenv("VAULT_TOKEN"))
+    } else Option(System.getenv("VAULT_TEMP_TOKEN"))
     if(vaultToken.isDefined) {
       require(vaultHost.isDefined, "A proper vault host is required")
       logDebug(s"env VAR: ${sys.env.mkString("\n")}")
