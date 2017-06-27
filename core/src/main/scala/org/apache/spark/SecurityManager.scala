@@ -261,7 +261,6 @@ private[spark] class SecurityManager(
 
   val (sslSocketFactory, hostnameVerifier) =
     if (fileServerSSLOptions.enabled || dataStoreSSLOptions.enabled) {
-
       val trustStoreManagers = getTrustStoreManager(fileServerSSLOptions.enabled,
         dataStoreSSLOptions.enabled, fileServerSSLOptions, dataStoreSSLOptions)
 
