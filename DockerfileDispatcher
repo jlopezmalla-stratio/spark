@@ -6,7 +6,8 @@ COPY dist /opt/sds/dist
 COPY docker/dispatcher/init.sh /sbin/init.sh
 COPY docker/dispatcher/service /etc/service/spark/run
 
-RUN curl -o /tmp/kms_utils-0.2.1.sh http://sodio.stratio.com/repository/paas/kms_utils/0.2.1/kms_utils-0.2.1.sh && \
+RUN sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java 1100  && \
+    curl -o /root/kms_utils-0.2.1.sh http://sodio.stratio.com/repository/paas/kms_utils/0.2.1/kms_utils-0.2.1.sh && \
     mv /opt/spark/dist /opt/spark/bak && \
     mv /opt/sds/dist /opt/spark/dist && \
     cp /opt/spark/bak/conf/* /opt/spark/dist/conf && \

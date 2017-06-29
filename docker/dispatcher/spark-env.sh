@@ -14,7 +14,7 @@ if [ "${SPARK_VIRTUAL_USER_NETWORK}" = "true" ]; then
 fi
 
 if [ "${SPARK_SSL_SECURITY_ENABLED}" == "true" ]; then
-    source /tmp/kms_utils-0.2.1.sh
+    source /root/kms_utils-0.2.1.sh
 
     VAULT_HOSTS=$VAULT_HOST
     export SPARK_SSL_CERT_PATH="/tmp"
