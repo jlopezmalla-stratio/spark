@@ -23,7 +23,7 @@ import java.util.{Date, Locale}
 import java.util.concurrent.atomic.AtomicLong
 import javax.servlet.http.HttpServletResponse
 
-import org.apache.spark.{SparkConf, SPARK_VERSION => sparkVersion}
+import org.apache.spark.{SPARK_VERSION => sparkVersion, SparkConf}
 import org.apache.spark.deploy.Command
 import org.apache.spark.deploy.mesos.{MesosClusterDispatcher, MesosDriverDescription}
 import org.apache.spark.deploy.rest._

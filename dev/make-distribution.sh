@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -31,7 +31,9 @@ set -x
 SPARK_HOME="$(cd "`dirname "$0"`/.."; pwd)"
 DISTDIR="$SPARK_HOME/dist"
 
-echo "Making spark-$VERSION-bin-stratio.tgz"
+VERSION=grep -Po -m2 '<version>\K[^<]*' pom.xml | tail -n1
+echo "Making spark-${VERSION}-bin-stratio.tgz"
+
 
 # Build uber fat JAR
 cd "$SPARK_HOME"
@@ -86,10 +88,10 @@ if [ -d "$SPARK_HOME"/R/lib/SparkR ]; then
   cp "$SPARK_HOME/R/lib/sparkr.zip" "$DISTDIR"/R/lib
 fi
 
-TARDIR_NAME=spark-$VERSION-bin-stratio
+TARDIR_NAME=spark-${VERSION}-bin-stratio
 TARDIR="$SPARK_HOME/$TARDIR_NAME"
 rm -rf "$TARDIR"
 cp -r "$DISTDIR" "$TARDIR"
-tar czf "spark-$VERSION-bin-stratio.tgz" -C "$SPARK_HOME" "$TARDIR_NAME"
+tar czf "spark-${VERSION}-bin-stratio.tgz" -C "$SPARK_HOME" "$TARDIR_NAME"
 rm -rf "$TARDIR"
 
