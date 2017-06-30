@@ -116,7 +116,7 @@ private[mesos] class MesosSubmitRequestServlet(
 
     val securitySparkOpts = if (sparkProperties.get("spark.secret.vault.role").isDefined
       || sparkProperties.get("spark.secret.vault.token").isDefined
-      || sys.env.get("VAULT_ROLE").isDefined){
+      || sys.env.get("VAULT_ROLE").isDefined) {
       if (sparkProperties.isDefinedAt("spark.secret.vault.host")) {
         if (sparkProperties.get("spark.secret.vault.token").isDefined) {
           if (sparkProperties.isDefinedAt("spark.secret.vault.host")) {
@@ -127,9 +127,10 @@ private[mesos] class MesosSubmitRequestServlet(
 
             Map("spark.secret.vault.tempToken" -> temporalToken) ++ request.sparkProperties
               .filter(_._1 != "spark.secret.vault.token")
-          } else if(sparkProperties.get("spark.secret.vault.role").isDefined || sys.env.get("VAULT_ROLE").isDefined) {
+          } else if (sparkProperties.get("spark.secret.vault.role").isDefined || sys.env.get("VAULT_ROLE").isDefined) {
             val vaultUrl = sparkProperties("spark.secret.vault.host")
-            val role = sparkProperties.get("spark.secret.vault.role").getOrElse(sys.env("VAULT_ROLE"))
+            val role = sparkProperties.get("spark.secret.vault.role")
+              .getOrElse(sys.env("VAULT_ROLE"))
             logTrace(s"obtaining vault secretID and role ID using role: $role")
             val driverSecretId = VaultHelper.getSecretIdFromVault(vaultUrl, role)
             val driverRoleId = VaultHelper.getRoleIdFromVault(vaultUrl, role)
@@ -137,26 +138,27 @@ private[mesos] class MesosSubmitRequestServlet(
             Map("spark.mesos.driverEnv.VAULT_ROLE_ID" -> driverRoleId,
               "spark.mesos.driverEnv.VAULT_SECRET_ID" -> driverSecretId)
           }
+        }
+        else {
+          logDebug("Vault appRole provided but non vault host" +
+            " had been provided, skipping vault calling")
+          Map()
+        }
       }
-      else {
-        logDebug("Vault appRole provided but non vault host" +
-          " had been provided, skipping vault calling")
-        Map()
-      }
+      val sparkPropertiesToSend = request.sparkProperties ++ securitySparkOpts
+
+      val command = new Command(
+        mainClass, appArgs, environmentVariables, extraClassPath, extraLibraryPath, javaOpts)
+      val actualSuperviseDriver = superviseDriver.map(_.toBoolean).getOrElse(DEFAULT_SUPERVISE)
+      val actualDriverMemory = driverMemory.map(Utils.memoryStringToMb).getOrElse(DEFAULT_MEMORY)
+      val actualDriverCores = driverCores.map(_.toDouble).getOrElse(DEFAULT_CORES)
+      val submitDate = new Date()
+      val submissionId = newDriverId(submitDate)
+
+      new MesosDriverDescription(
+        name, appResource, actualDriverMemory, actualDriverCores, actualSuperviseDriver,
+        command, sparkPropertiesToSend, submissionId, submitDate)
     }
-    val sparkPropertiesToSend = request.sparkProperties ++ securitySparkOpts
-
-    val command = new Command(
-      mainClass, appArgs, environmentVariables, extraClassPath, extraLibraryPath, javaOpts)
-    val actualSuperviseDriver = superviseDriver.map(_.toBoolean).getOrElse(DEFAULT_SUPERVISE)
-    val actualDriverMemory = driverMemory.map(Utils.memoryStringToMb).getOrElse(DEFAULT_MEMORY)
-    val actualDriverCores = driverCores.map(_.toDouble).getOrElse(DEFAULT_CORES)
-    val submitDate = new Date()
-    val submissionId = newDriverId(submitDate)
-
-    new MesosDriverDescription(
-      name, appResource, actualDriverMemory, actualDriverCores, actualSuperviseDriver,
-      command, sparkPropertiesToSend, submissionId, submitDate)
   }
 
   protected override def handleSubmit(
