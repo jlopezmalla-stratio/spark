@@ -74,8 +74,9 @@ object VaultHelper extends Logging {
 
     val jsonToken = jsonTempTokenTemplate.replace("_replace_", token)
 
-    HTTPHelper.executePost(requestUrl, "data",
-      Some(Seq(("X-Vault-Token", token))), Some(jsonToken))("token").asInstanceOf[String]
+    HTTPHelper.executePost(requestUrl, "wrap_info",
+      Some(Seq(("X-Vault-Token", token), ("X-Vault-Wrap-TTL", sys.env.get("VAULT_WRAP_TTL")
+        .getOrElse("2000")))), Some(jsonToken))("token").asInstanceOf[String]
   }
 
   def getKeytabPrincipalFromVault(vaultUrl: String,
@@ -120,7 +121,6 @@ object VaultHelper extends Logging {
     HTTPHelper.executeGet(requestUrl,
       "data", Some(Seq(("X-Vault-Token", token))))("pass").asInstanceOf[String]
   }
-
 
   def getCertKeyForAppFromVault(vaultUrl: String,
                                 vaultPath: String,

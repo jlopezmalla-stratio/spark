@@ -46,10 +46,16 @@ private[spark] class MesosRestServer(
   extends RestSubmissionServer(host, requestedPort, masterConf) {
 
   protected lazy val token = {
-    require(masterConf.getOption("spark.secret.vault.host").isDefined,
+    require((masterConf.getOption("spark.secret.vault.protocol").isDefined
+      && masterConf.getOption("spark.secret.vault.hosts").isDefined
+      && masterConf.getOption("spark.secret.vault.port").isDefined),
       "You are attempt a login in Vault but no vault obtained," +
-      " please confiure spark.vault.host in your Stratio Spark Dispatcher instance")
-    VaultHelper.getTokenFromAppRole(masterConf.getOption("spark.secret.vault.host").get,
+      " please confiure spark.secret.vault.protocol, spark.vault.host and spark.secret.vault.port" +
+        " in your Stratio Spark Dispatcher instance")
+    val vaultUrl = s"${masterConf.get("spark.secret.vault.protocol")}://" +
+      s"${masterConf.get("spark.secret.vault.hosts").split(",")
+        .map(host => s"$host:${masterConf.get("spark.secret.vault.port")}").mkString(",")}"
+    VaultHelper.getTokenFromAppRole(vaultUrl,
       sys.env("VAULT_ROLE_ID"),
       sys.env("VAULT_SECRET_ID"))
   }
@@ -115,13 +121,15 @@ private[mesos] class MesosSubmitRequestServlet(
     val javaOpts = sparkJavaOpts ++ extraJavaOpts
 
     val securitySparkOpts: Map[String, String] = {
-      if (sparkProperties.get("spark.secret.vault.host").isDefined) {
-        val vaultUrl = sparkProperties("spark.secret.vault.host")
+      if (sparkProperties.get("spark.secret.vault.hosts").isDefined) {
+        val vaultUrl = s"${sparkProperties("spark.secret.vault.protocol")}://" +
+          s"${sparkProperties("spark.secret.vault.hosts").split(",")
+            .map(host => s"$host:${sparkProperties("spark.secret.vault.port")}").mkString(",")}"
         (sparkProperties.get("spark.secret.vault.role"),
           sys.env.get("VAULT_ROLE"),
           sparkProperties.get("spark.secret.vault.token"),
           sys.env.get("VAULT_TEMP_TOKEN")) match {
-          case (roleProp, roleEnv, None, None) =>
+          case (roleProp, roleEnv, None, None) if (roleEnv.isDefined || roleProp.isDefined) =>
             val role = roleProp.getOrElse(roleEnv.get)
             logTrace(s"obtaining vault secretID and role ID using role: $role")
             val driverSecretId = VaultHelper.getSecretIdFromVault(vaultUrl, role)

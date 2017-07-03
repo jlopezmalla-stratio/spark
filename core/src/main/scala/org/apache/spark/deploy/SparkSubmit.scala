@@ -660,18 +660,20 @@ object SparkSubmit {
         || args.sparkProperties.get("spark.secret.vault.tempToken").isDefined
         || sys.env.get("VAULT_TEMP_TOKEN").isDefined) {
 
-      val host = args.sparkProperties("spark.secret.vault.host")
+      val vaultUrl = s"${args.sparkProperties("spark.secret.vault.protocol")}://" +
+        s"${args.sparkProperties("spark.secret.vault.hosts").split(",")
+          .map(host => s"$host:${args.sparkProperties("spark.secret.vault.port")}").mkString(",")}"
       val vaultToken = if (args.sparkProperties.get("spark.secret.vault.tempToken").isDefined
         || sys.env.get("VAULT_TEMP_TOKEN").isDefined) {
-        VaultHelper.getRealToken(host, args.sparkProperties.getOrElse(
+        VaultHelper.getRealToken(vaultUrl, args.sparkProperties.getOrElse(
           "spark.secret.vault.tempToken", sys.env("VAULT_TEMP_TOKEN")))
       } else {
         val roleID = args.sparkProperties("spark.secret.roleID")
         val secretID = args.sparkProperties("spark.secret.secretID")
-        VaultHelper.getTokenFromAppRole(host, roleID, secretID)
+        VaultHelper.getTokenFromAppRole(vaultUrl, roleID, secretID)
       }
 
-      val environment = ConfigSecurity.prepareEnvironment(Option(vaultToken), Option(host))
+      val environment = ConfigSecurity.prepareEnvironment(Option(vaultToken), Option(vaultUrl))
       val principal = environment.get("principal").getOrElse(args.principal)
       val keytab = environment.get("keytabPath").getOrElse(args.keytab)
 

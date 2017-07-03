@@ -13,7 +13,7 @@ if [ "${SPARK_VIRTUAL_USER_NETWORK}" = "true" ]; then
    export LIBPROCESS_IP=$HOST
 fi
 
-if [ "${SPARK_SSL_SECURITY_ENABLED}" == "true" ]; then
+if [ "${SPARK_SECURITY_DATASTORE_ENABLE}" == "true" ]; then
     source /root/kms_utils-0.2.1.sh
 
     VAULT_HOSTS=$VAULT_HOST
@@ -26,7 +26,7 @@ if [ "${SPARK_SSL_SECURITY_ENABLED}" == "true" ]; then
    echo "VAULT_ROLE_ID: $VAULT_ROLE_ID"
 
     #0--- IF VAULT_ROLE_ID IS NOT EMPTY [!-z $YOUR_VAR] IT MEANS THAT WE ARE DEALING WITH SPARK DRIVER
-    if [! -z "$VAULT_ROLE_ID"]; then
+    if [ ! -z "$VAULT_ROLE_ID" ]; then
         login
     else
         #1--- FROM TEMP TOKEN GET APP TOKEN

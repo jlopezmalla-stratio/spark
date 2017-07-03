@@ -682,7 +682,9 @@ private[spark] class MesosClusterScheduler(
           val nextRetry = new Date(new Date().getTime + waitTimeSec * 1000L)
           val sparkProperties = state.driverDescription.conf.getAll.toMap
 
-          val vaultUrl = sparkProperties("spark.secret.vault.host")
+          val vaultUrl = s"${sparkProperties("spark.secret.vault.protocol")}://" +
+            s"${sparkProperties("spark.secret.vault.hosts").split(",")
+              .map(host => s"$host:${sparkProperties("spark.secret.vault.port")}").mkString(",")}"
           val role = sparkProperties("spark.secret.vault.role")
           val driverSecretId = VaultHelper.getSecretIdFromVault(vaultUrl, role)
           val driverRoleId = VaultHelper.getRoleIdFromVault(vaultUrl, role)
