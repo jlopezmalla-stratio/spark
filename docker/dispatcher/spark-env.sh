@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -xe
 
 # This file is sourced when running various Spark programs.
 # Copy it as spark-env.sh and edit that to configure Spark for your site.
@@ -27,9 +27,11 @@ if [ "${SPARK_SECURITY_DATASTORE_ENABLE}" == "true" ]; then
 
     #0--- IF VAULT_ROLE_ID IS NOT EMPTY [!-z $YOUR_VAR] IT MEANS THAT WE ARE DEALING WITH SPARK DRIVER
     if [ ! -z "$VAULT_ROLE_ID" ]; then
+        echo "Vault role id proved, signing in"
         login
     else
         #1--- FROM TEMP TOKEN GET APP TOKEN
+        echo "No vault role ID provided, unwrapping OTT"
         VAULT_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Token:$VAULT_TEMP_TOKEN" "$VAULT_HOSTS/v1/sys/wrapping/unwrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["data"]["token"]')
     fi
 
