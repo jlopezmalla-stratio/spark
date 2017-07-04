@@ -21,7 +21,9 @@ import org.apache.spark.internal.Logging
 object ConfigSecurity extends Logging{
 
   var vaultToken: Option[String] = None
-  var vaultHost: Option[String] = Option(System.getenv("VAULT_HOST"))
+  var vaultHost: Option[String] = Option(s"${sys.env("VAULT_PROTOCOL")}" +
+    s"${sys.env("VAULT_HOSTS").split(",")
+    .map(host => s"$host:${sys.env("VAULT_PORT")}").mkString(",")}")
 
   def prepareEnvironment(vaultAppToken: Option[String] = None,
                          vaulHost: Option[String] = None): Map[String, String] = {
