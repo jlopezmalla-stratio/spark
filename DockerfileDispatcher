@@ -18,7 +18,7 @@ RUN sudo apt-get install -y jq  && \
     chmod +x /etc/service/spark/run && \
     curl -OL https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 -s && \
     chmod +x jq-linux64 && \
-    mv jq-linux64 $(which jq)
+    mv jq-linux64 /usr/bin/jq
 
 COPY docker/dispatcher/spark-env.sh /opt/spark/dist/conf/spark-env.sh
 
