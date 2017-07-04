@@ -6,8 +6,8 @@ COPY dist /opt/sds/dist
 COPY docker/dispatcher/init.sh /sbin/init.sh
 COPY docker/dispatcher/service /etc/service/spark/run
 
-RUN sudo apt-get install -y jq  && \
-    sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java 1100  && \
+RUN apt-get install -y jq  && \
+    update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java 1100  && \
     curl -o /root/kms_utils-0.2.1.sh http://sodio.stratio.com/repository/paas/kms_utils/0.2.1/kms_utils-0.2.1.sh && \
     mv /opt/spark/dist /opt/spark/bak && \
     mv /opt/sds/dist /opt/spark/dist && \
@@ -16,9 +16,8 @@ RUN sudo apt-get install -y jq  && \
     rm -rf /opt/spark/bak && \
     chmod +x /sbin/init.sh && \
     chmod +x /etc/service/spark/run && \
-    curl -OL https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 -s && \
-    chmod +x jq-linux64 && \
-    mv jq-linux64 /usr/bin/jq
+    curl -o /usr/bin/jq -L https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 -s && \
+    chmod +x /usr/bin/jq 
 
 COPY docker/dispatcher/spark-env.sh /opt/spark/dist/conf/spark-env.sh
 
