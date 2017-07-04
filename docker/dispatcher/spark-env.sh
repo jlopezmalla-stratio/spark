@@ -20,7 +20,8 @@ if [ "${SPARK_DATASTORE_SSL_ENABLE}" == "true" ]; then
     export SPARK_SSL_CERT_PATH="/tmp"
     SERVICE_ID=$APP_NAME
     INSTANCE=$APP_NAME
-
+    VAULT_URI="$VAULT_PROTOCOL://$VAULT_HOSTS:$VAULT_PORT"
+  
    echo "VAULT_HOSTS: ${VAULT_HOSTS} SPARK_SSL_CERT_PATH: ${SPARK_SSL_CERT_PATH} SERVICE_ID: ${SERVICE_ID} INSTANCE; ${INSTANCE}"
 
    echo "VAULT_ROLE_ID: $VAULT_ROLE_ID"
@@ -32,7 +33,7 @@ if [ "${SPARK_DATASTORE_SSL_ENABLE}" == "true" ]; then
     else
         #1--- FROM TEMP TOKEN GET APP TOKEN
         echo "No vault role ID provided, unwrapping OTT"
-        VAULT_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Token:$VAULT_TEMP_TOKEN" "https://$VAULT_HOSTS:$VAULT_PORT/v1/sys/wrapping/unwrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["data"]["token"]')
+        VAULT_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Token:$VAULT_TEMP_TOKEN" "$VAULT_URI/v1/sys/wrapping/unwrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["data"]["token"]')
     fi
 
     echo "VAULT_TOKEN: $VAULT_TOKEN"
@@ -43,7 +44,7 @@ if [ "${SPARK_DATASTORE_SSL_ENABLE}" == "true" ]; then
     #GET CA-BUNDLE for given CA
     #getCAbundle $SPARK_SSL_CERT_PATH "PEM"
     JSON_KEY="${CA_NAME}_crt"
-    CA_BUNDLE=$(curl -k -XGET -H "X-Vault-Token:$VAULT_TOKEN" "https://$VAULT_HOSTS:$VAULT_PORT/v1/ca-trust/certificates/$CA_NAME" -s |  jq -cMSr --arg fqdn "" ".data[\"$JSON_KEY\"]")
+    CA_BUNDLE=$(curl -k -XGET -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_URI/v1/ca-trust/certificates/$CA_NAME" -s |  jq -cMSr --arg fqdn "" ".data[\"$JSON_KEY\"]")
 
     echo "$CA_BUNDLE" > ${SPARK_SSL_CERT_PATH}/caroot.crt
     sed -i 's/-----BEGIN CERTIFICATE-----/-----BEGIN CERTIFICATE-----\n/g' ${SPARK_SSL_CERT_PATH}/caroot.crt
@@ -53,7 +54,7 @@ if [ "${SPARK_DATASTORE_SSL_ENABLE}" == "true" ]; then
 
 
     #3--- RESTORE TEMP TOKEN
-    export VAULT_TEMP_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Wrap-TTL: 6000" -H "X-Vault-Token:$VAULT_TOKEN" -d "{\"token\": \"$VAULT_TOKEN\" }" "https://$VAULT_HOSTS:$VAULT_PORT/v1/sys/wrapping/wrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["wrap_info"]["token"]')
+    export VAULT_TEMP_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Wrap-TTL: 6000" -H "X-Vault-Token:$VAULT_TOKEN" -d "{\"token\": \"$VAULT_TOKEN\" }" "$VAULT_URI/v1/sys/wrapping/wrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["wrap_info"]["token"]')
 
     echo "VAULT_TEMP_TOKEN: $VAULT_TEMP_TOKEN"
 

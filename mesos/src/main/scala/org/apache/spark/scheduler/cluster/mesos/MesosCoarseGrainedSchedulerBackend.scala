@@ -200,7 +200,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
     if (ConfigSecurity.vaultToken.isDefined) {
       environment.addVariables(Environment.Variable.newBuilder()
         .setName("VAULT_TEMP_TOKEN")
-        .setValue(VaultHelper.getTemporalToken(ConfigSecurity.vaultHost.get,
+        .setValue(VaultHelper.getTemporalToken(ConfigSecurity.vaultUri.get,
           ConfigSecurity.vaultToken.get))
         .build())
       environment.addVariables(Environment.Variable.newBuilder()

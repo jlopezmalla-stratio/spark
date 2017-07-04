@@ -21,9 +21,14 @@ import org.apache.spark.internal.Logging
 object ConfigSecurity extends Logging{
 
   var vaultToken: Option[String] = None
-  var vaultHost: Option[String] = Option(s"${sys.env("VAULT_PROTOCOL")}" +
-    s"${sys.env("VAULT_HOSTS").split(",")
-    .map(host => s"$host:${sys.env("VAULT_PORT")}").mkString(",")}")
+  val vaultHost: Option[String] = sys.env.get("VAULT_HOSTS")
+  val vaultUri: Option[String] = {
+    (sys.env.get("VAULT_PROTOCOL"), vaultHost, sys.env.get("VAULT_PORT")) match {
+      case (Some(vaultProtocol), Some(vaultHost), Some(vaultPort)) =>
+        Option(s"$vaultProtocol://$vaultHost:$vaultPort")
+      case _ => None
+    }
+  }
 
   def prepareEnvironment(vaultAppToken: Option[String] = None,
                          vaulHost: Option[String] = None): Map[String, String] = {
@@ -34,9 +39,9 @@ object ConfigSecurity extends Logging{
     loadingConf(secretOptionsMap)
     vaultToken = if (vaultToken.isDefined) vaultAppToken else Option(System.getenv("VAULT_TOKEN"))
     if(vaultToken.isDefined) {
-      require(vaultHost.isDefined, "A proper vault host is required")
+      require(vaultUri.isDefined, "A proper vault host is required")
       logDebug(s"env VAR: ${sys.env.mkString("\n")}")
-      prepareEnvironment(vaultHost.get, vaultToken.get, secretOptionsMap)
+      prepareEnvironment(vaultUri.get, vaultToken.get, secretOptionsMap)
     }
     else Map()
   }
