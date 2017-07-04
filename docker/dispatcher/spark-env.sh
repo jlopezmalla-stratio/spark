@@ -32,7 +32,7 @@ if [ "${SPARK_SECURITY_DATASTORE_ENABLE}" == "true" ]; then
     else
         #1--- FROM TEMP TOKEN GET APP TOKEN
         echo "No vault role ID provided, unwrapping OTT"
-        VAULT_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Token:$VAULT_TEMP_TOKEN" "$VAULT_HOSTS/v1/sys/wrapping/unwrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["data"]["token"]')
+        VAULT_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Token:$VAULT_TEMP_TOKEN" "https://$VAULT_HOSTS:$VAULT_PORT/v1/sys/wrapping/unwrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["data"]["token"]')
     fi
 
    echo "VAULT_TOKEN: $VAULT_TOKEN"
@@ -42,9 +42,13 @@ if [ "${SPARK_SECURITY_DATASTORE_ENABLE}" == "true" ]; then
     getCAbundle $SPARK_SSL_CERT_PATH "PEM"
 
     #3--- RESTORE TEMP TOKEN
-    export VAULT_TEMP_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Wrap-TTL: 6000" -H "X-Vault-Token:$VAULT_TOKEN" -d "{\"token\": \"$VAULT_TOKEN\" }" "$VAULT_HOSTS/v1/sys/wrapping/wrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["wrap_info"]["token"]')
+    export VAULT_TEMP_TOKEN=$(curl -k -L -XPOST -H "X-Vault-Wrap-TTL: 6000" -H "X-Vault-Token:$VAULT_TOKEN" -d "{\"token\": \"$VAULT_TOKEN\" }" "https://$VAULT_HOSTS:$VAULT_PORT/v1/sys/wrapping/wrap" -s| python -m json.tool | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["wrap_info"]["token"]')
 
     echo "VAULT_TEMP_TOKEN: $VAULT_TEMP_TOKEN"
+
+    fold -w64 "${SPARK_SSL_CERT_PATH}/${SERVICE_ID}.key" >> "${SPARK_SSL_CERT_PATH}/aux.key"
+
+    mv "${SPARK_SSL_CERT_PATH}/aux.key" "${SPARK_SSL_CERT_PATH}/${SERVICE_ID}.key"
 
     openssl pkcs8 -topk8 -inform pem -in "${SPARK_SSL_CERT_PATH}/${SERVICE_ID}.key" -outform der -nocrypt -out "${SPARK_SSL_CERT_PATH}/pkcs8.key"
 
