@@ -25,8 +25,12 @@ object ConfigSecurity extends Logging{
   val vaultUri: Option[String] = {
     (sys.env.get("VAULT_PROTOCOL"), vaultHost, sys.env.get("VAULT_PORT")) match {
       case (Some(vaultProtocol), Some(vaultHost), Some(vaultPort)) =>
-        Option(s"$vaultProtocol://$vaultHost:$vaultPort")
-      case _ => None
+        val vaultUri = s"$vaultProtocol://$vaultHost:$vaultPort"
+        logDebug(s"vault uri: $vaultUri found, any Vault Connection will use it")
+        Option(vaultUri)
+      case _ =>
+        logDebug("No Vault information found, any Vault Connection will fail")
+        None
     }
   }
 

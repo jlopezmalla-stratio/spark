@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
-
 import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.deploy.SparkHadoopUtil
@@ -33,7 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rpc._
 import org.apache.spark.scheduler.{ExecutorLossReason, TaskDescription}
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
-import org.apache.spark.security.ConfigSecurity
+import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.util.{ThreadUtils, Utils}
 
@@ -288,7 +287,10 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       appId == null) {
       printUsageAndExit()
     }
-    ConfigSecurity.prepareEnvironment(Option(System.getenv("VAULT_TEMP_TOKEN")))
+    ConfigSecurity.prepareEnvironment(scala.util.Try{
+      VaultHelper.getRealToken(ConfigSecurity.vaultUri.get,
+        sys.env("VAULT_TEMP_TOKEN"))}.toOption)
+
     run(driverUrl, executorId, hostname, cores, appId, workerUrl, userClassPath)
     System.exit(0)
   }
