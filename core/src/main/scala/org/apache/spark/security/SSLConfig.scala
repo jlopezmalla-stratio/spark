@@ -38,7 +38,7 @@ object SSLConfig extends Logging{
                          sslType: String,
                          options: Map[String, String]): Map[String, String] = {
     val rootCA = VaultHelper.getRootCA(vaultHost, vaultToken)
-    val rootCAPath = writeRootCA(rootCA)
+
     val certPass = VaultHelper.getCertPassFromVault(vaultHost, vaultToken)
     val trustStorePath = generateTrustStore(sslType, rootCA, certPass)
 
@@ -48,7 +48,6 @@ object SSLConfig extends Logging{
       Map(s"spark.ssl.${sslType.toLowerCase}.enabled" -> "true",
         s"spark.ssl.${sslType.toLowerCase}.trustStore" -> trustStorePath,
         s"spark.ssl.${sslType.toLowerCase}.trustStorePassword" -> certPass,
-        s"spark.ssl.${sslType.toLowerCase}.rootCaPath" -> rootCAPath,
         s"spark.ssl.${sslType.toLowerCase}.security.protocol" -> "SSL")
 
     val vaultKeystorePath = options.get(s"${sslType}_VAULT_CERT_PATH")
@@ -191,30 +190,5 @@ object SSLConfig extends Logging{
     pattern.map(value => {
       DatatypeConverter.parseBase64Binary(value)
     })
-  }
-
-  def writeRootCA(rootCA: String): String = {
-    def getCertFromOnLine(certBadFormat: String): String = {
-      var text1 = certBadFormat
-      var arg = Seq[String]()
-      while (text1.size != 0) {
-        val (toStore, toUpdate) = text1.splitAt(64)
-        text1 = toUpdate
-        arg = arg ++ Seq(toStore)
-      }
-      arg.mkString("\n")
-    }
-
-    val path = "/tmp/root.crt"
-    val splitter = rootCA.split("BEGIN").head
-    val Array(_, head, certBadFormat, tail) = rootCA.split(splitter)
-    val cert = getCertFromOnLine(certBadFormat)
-    val writableCert = Seq(s"$splitter$head$splitter", cert, s"$splitter$tail$splitter")
-      .mkString("\n")
-    val downloadFile = Files.createFile(Paths.get(path),
-      PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
-    downloadFile.toFile.deleteOnExit()
-    Files.write(downloadFile, writableCert.getBytes)
-    path
   }
 }

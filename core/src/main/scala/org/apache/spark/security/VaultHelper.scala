@@ -97,7 +97,7 @@ object VaultHelper extends Logging {
 
     logDebug(s"Requesting Cert List: $listCertKeysVaultPath")
     val keys = HTTPHelper.executeGet(listCertKeysVaultPath,
-      "data", Some(Seq(("X-Vault-Token", token))))("pass").asInstanceOf[List[String]]
+      "data", Some(Seq(("X-Vault-Token", token))))("keys").asInstanceOf[List[String]]
 
     keys.flatMap(key => {
       HTTPHelper.executeGet(s"$requestUrl$key",
