@@ -280,7 +280,7 @@ object SparkSubmit {
       if (!Utils.classIsLoadable("org.apache.spark.deploy.yarn.Client") && !Utils.isTesting) {
         printErrorAndExit(
           "Could not load YARN classes. " +
-          "This copy of Spark may not have been compiled with YARN support.")
+            "This copy of Spark may not have been compiled with YARN support.")
       }
     }
 
@@ -296,11 +296,11 @@ object SparkSubmit {
     // Resolve maven dependencies if there are any and add classpath to jars. Add them to py-files
     // too for packages that include Python code
     val exclusions: Seq[String] =
-      if (!StringUtils.isBlank(args.packagesExclusions)) {
-        args.packagesExclusions.split(",")
-      } else {
-        Nil
-      }
+    if (!StringUtils.isBlank(args.packagesExclusions)) {
+      args.packagesExclusions.split(",")
+    } else {
+      Nil
+    }
     val resolvedMavenCoordinates = SparkSubmitUtils.resolveMavenCoordinates(args.packages,
       Option(args.repositories), Option(args.ivyRepoPath), exclusions = exclusions)
     if (!StringUtils.isBlank(resolvedMavenCoordinates)) {
@@ -654,32 +654,66 @@ object SparkSubmit {
       sysProps("spark.submit.pyFiles") = formattedPyFiles
     }
 
-    val (pincipal, keytab) = if (
-      (args.sparkProperties.get("spark.secret.roleID").isDefined &&
-        args.sparkProperties.get("spark.secret.secretID").isDefined)
-        || args.sparkProperties.get("spark.secret.vault.tempToken").isDefined
-        || sys.env.get("VAULT_TEMP_TOKEN").isDefined) {
 
-      val vaultUrl = s"${args.sparkProperties("spark.secret.vault.protocol")}://" +
-        s"${args.sparkProperties("spark.secret.vault.hosts").split(",")
-          .map(host => s"$host:${args.sparkProperties("spark.secret.vault.port")}").mkString(",")}"
-      val vaultToken = if (args.sparkProperties.get("spark.secret.vault.tempToken").isDefined
-        || sys.env.get("VAULT_TEMP_TOKEN").isDefined) {
-        VaultHelper.getRealToken(vaultUrl, args.sparkProperties.getOrElse(
-          "spark.secret.vault.tempToken", sys.env("VAULT_TEMP_TOKEN")))
-      } else {
-        val roleID = args.sparkProperties("spark.secret.roleID")
-        val secretID = args.sparkProperties("spark.secret.secretID")
-        VaultHelper.getTokenFromAppRole(vaultUrl, roleID, secretID)
+    val mesosRoleEnv = (sys.env.get("VAULT_ROLE_ID"),
+      sys.env.get("VAULT_SECRET_ID"))
+
+    val sparkRoleOpts = (args.sparkProperties.get("spark.secret.roleID"),
+      args.sparkProperties.get("spark.secret.secretID"))
+
+    val tempToken = args.sparkProperties.get("spark.secret.vault.tempToken")
+
+
+    val sysEnvToken = sys.env.get("VAULT_TEMP_TOKEN")
+
+    val vaultUrl = s"${args.sparkProperties ("spark.secret.vault.protocol")}://" +
+      s"${
+        args.sparkProperties ("spark.secret.vault.hosts").split (",")
+          .map (host => s"$host:${
+            args.sparkProperties ("spark.secret.vault.port")
+          }").mkString (",")
+      }"
+
+
+    val (pincipal, keytab) =
+      (mesosRoleEnv, sparkRoleOpts, tempToken, sysEnvToken) match {
+
+        case ((roleIdEnv, secretIdEnv), (roleIdProp, secretIdProp), _, _)
+          if ((roleIdEnv.isDefined || roleIdProp.isDefined) &&
+            (secretIdEnv.isDefined || secretIdProp.isDefined)) =>
+          //scalastyle:off
+          println("Role ID and SecretId found")
+          val roleId = roleIdEnv.getOrElse(roleIdProp.get)
+          val secretId = secretIdEnv.getOrElse(secretIdProp.get)
+          val vaultToken = VaultHelper.getTokenFromAppRole (vaultUrl, roleId, secretId)
+          val environment = ConfigSecurity.prepareEnvironment(
+            Option(vaultToken), Option (vaultUrl) )
+          val principal = environment.get ("principal").getOrElse (args.principal)
+          val keytab = environment.get ("keytabPath").getOrElse (args.keytab)
+
+          environment.foreach {
+            case (key, value) => sysProps.put (key, value)
+          }
+          (principal, keytab)
+
+        case (_, _, tempTokenProp, tempTokenEnv)
+          if (tempTokenProp.isDefined || tempTokenEnv.isDefined) =>
+          //scalastyle:off
+          println("TempToken found")
+          val tempToken = tempTokenProp.getOrElse(tempTokenEnv.get)
+          val vaultToken = VaultHelper.getRealToken (vaultUrl, tempToken)
+          val environment = ConfigSecurity.prepareEnvironment(
+            Option (vaultToken), Option (vaultUrl))
+          val principal = environment.get ("principal").getOrElse (args.principal)
+          val keytab = environment.get ("keytabPath").getOrElse (args.keytab)
+
+          environment.foreach {
+            case (key, value) => sysProps.put (key, value)
+          }
+          (principal, keytab)
+
+        case _ => (args.principal, args.keytab)
       }
-
-      val environment = ConfigSecurity.prepareEnvironment(Option(vaultToken), Option(vaultUrl))
-      val principal = environment.get("principal").getOrElse(args.principal)
-      val keytab = environment.get("keytabPath").getOrElse(args.keytab)
-
-      environment.foreach{case (key, value) => sysProps.put(key, value)}
-      (principal, keytab)
-    } else (args.principal, args.keytab)
 
     (childArgs, childClasspath, sysProps, childMainClass, pincipal, keytab)
   }

@@ -27,11 +27,18 @@
 set -e
 set -x
 
+if [ -z "$1" ]
+  then
+    echo "No argument supplied"
+    exit 1
+fi
+
 # Figure out where the Spark framework is installed
 SPARK_HOME="$(cd "`dirname "$0"`/.."; pwd)"
 DISTDIR="$SPARK_HOME/dist"
 
-VERSION=grep -Po -m2 '<version>\K[^<]*' pom.xml | tail -n1
+VERSION=$1
+
 echo "Making spark-${VERSION}-bin-stratio.tgz"
 
 

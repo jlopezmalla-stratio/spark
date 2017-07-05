@@ -37,19 +37,20 @@ object SSLConfig extends Logging{
                          vaultToken: String,
                          sslType: String,
                          options: Map[String, String]): Map[String, String] = {
+    val sparkSSLPrefix = "spark.ssl."
+
     val rootCA = VaultHelper.getRootCA(vaultHost, vaultToken)
-    val rootCAPath = writeRootCA(rootCA)
+
     val certPass = VaultHelper.getCertPassFromVault(vaultHost, vaultToken)
     val trustStorePath = generateTrustStore(sslType, rootCA, certPass)
 
     logInfo(s"Setting SSL values for $sslType")
 
     val trustStoreOptions =
-      Map(s"spark.ssl.${sslType.toLowerCase}.enabled" -> "true",
-        s"spark.ssl.${sslType.toLowerCase}.trustStore" -> trustStorePath,
-        s"spark.ssl.${sslType.toLowerCase}.trustStorePassword" -> certPass,
-        s"spark.ssl.${sslType.toLowerCase}.rootCaPath" -> rootCAPath,
-        s"spark.ssl.${sslType.toLowerCase}.security.protocol" -> "SSL")
+      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.enabled" -> "true",
+        s"$sparkSSLPrefix${sslType.toLowerCase}.trustStore" -> trustStorePath,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.trustStorePassword" -> certPass,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.security.protocol" -> "SSL")
 
     val vaultKeystorePath = options.get(s"${sslType}_VAULT_CERT_PATH")
 
@@ -65,10 +66,10 @@ object SSLConfig extends Logging{
 
       val keyStorePath = generateKeyStore(sslType, certs, key, pass)
 
-      Map(s"spark.ssl${sslType.toLowerCase}.keyStore" -> keyStorePath,
-        s"spark.ssl${sslType.toLowerCase}.keyStorePassword" -> pass,
-        s"spark.ssl${sslType.toLowerCase}.protocol" -> "TLSv1.2",
-        s"spark.ssl${sslType.toLowerCase}.needClientAuth" -> "true"
+      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.keyStore" -> keyStorePath,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.keyStorePassword" -> pass,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.protocol" -> "TLSv1.2",
+        s"$sparkSSLPrefix${sslType.toLowerCase}.needClientAuth" -> "true"
       )
 
     } else {
@@ -79,13 +80,13 @@ object SSLConfig extends Logging{
 
     val vaultKeyPassPath = options.get(s"${sslType}_VAULT_KEY_PASS_PATH")
 
-    val keyPass = Map(s"spark.ssl.${sslType.toLowerCase}.keyPassword"
+    val keyPass = Map(s"$sparkSSLPrefix${sslType.toLowerCase}.keyPassword"
       -> VaultHelper.getCertPassForAppFromVault(vaultHost, vaultKeyPassPath.get, vaultToken))
 
     val certFilesPath =
-      Map("spark.ssl.cert.path" -> s"${sys.env.get("SPARK_SSL_CERT_PATH")}/cert.crt",
-        "spark.ssl.key.pkcs8" -> s"${sys.env.get("SPARK_SSL_CERT_PATH")}/key.pkcs8",
-        "spark.ssl.root.cert" -> s"${sys.env.get("SPARK_SSL_CERT_PATH")}/caroot.crt")
+      Map(sparkSSLPrefix + "cert.path" -> s"${sys.env.get("SPARK_SSL_CERT_PATH")}/cert.crt",
+        sparkSSLPrefix + "key.pkcs8" -> s"${sys.env.get("SPARK_SSL_CERT_PATH")}/key.pkcs8",
+        sparkSSLPrefix + "root.cert" -> s"${sys.env.get("SPARK_SSL_CERT_PATH")}/caroot.crt")
 
     trustStoreOptions ++ keyStoreOptions ++ keyPass ++ certFilesPath
   }
@@ -191,30 +192,5 @@ object SSLConfig extends Logging{
     pattern.map(value => {
       DatatypeConverter.parseBase64Binary(value)
     })
-  }
-
-  def writeRootCA(rootCA: String): String = {
-    def getCertFromOnLine(certBadFormat: String): String = {
-      var text1 = certBadFormat
-      var arg = Seq[String]()
-      while (text1.size != 0) {
-        val (toStore, toUpdate) = text1.splitAt(64)
-        text1 = toUpdate
-        arg = arg ++ Seq(toStore)
-      }
-      arg.mkString("\n")
-    }
-
-    val path = "/tmp/root.crt"
-    val splitter = rootCA.split("BEGIN").head
-    val Array(_, head, certBadFormat, tail) = rootCA.split(splitter)
-    val cert = getCertFromOnLine(certBadFormat)
-    val writableCert = Seq(s"$splitter$head$splitter", cert, s"$splitter$tail$splitter")
-      .mkString("\n")
-    val downloadFile = Files.createFile(Paths.get(path),
-      PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
-    downloadFile.toFile.deleteOnExit()
-    Files.write(downloadFile, writableCert.getBytes)
-    path
   }
 }

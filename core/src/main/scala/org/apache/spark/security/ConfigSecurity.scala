@@ -21,12 +21,16 @@ import org.apache.spark.internal.Logging
 object ConfigSecurity extends Logging{
 
   var vaultToken: Option[String] = None
-  val vaultHost: Option[String] = sys.env.get("VAULT_HOSTS")
+  val vaultHost: Option[String] = sys.env.get("VAULT_HOST")
   val vaultUri: Option[String] = {
     (sys.env.get("VAULT_PROTOCOL"), vaultHost, sys.env.get("VAULT_PORT")) match {
       case (Some(vaultProtocol), Some(vaultHost), Some(vaultPort)) =>
-        Option(s"$vaultProtocol://$vaultHost:$vaultPort")
-      case _ => None
+        val vaultUri = s"$vaultProtocol://$vaultHost:$vaultPort"
+        logDebug(s"vault uri: $vaultUri found, any Vault Connection will use it")
+        Option(vaultUri)
+      case _ =>
+        logDebug("No Vault information found, any Vault Connection will fail")
+        None
     }
   }
 
@@ -37,7 +41,9 @@ object ConfigSecurity extends Logging{
     val secretOptionsMap = ConfigSecurity.extractSecretFromEnv(sys.env)
     logDebug(s"secretOptionsMap: ${secretOptionsMap.mkString("\n")}")
     loadingConf(secretOptionsMap)
-    vaultToken = if (vaultToken.isDefined) vaultAppToken else Option(System.getenv("VAULT_TOKEN"))
+    vaultToken = if (vaultAppToken.isDefined) {
+      vaultAppToken
+    } else sys.env.get("VAULT_TOKEN")
     if(vaultToken.isDefined) {
       require(vaultUri.isDefined, "A proper vault host is required")
       logDebug(s"env VAR: ${sys.env.mkString("\n")}")
