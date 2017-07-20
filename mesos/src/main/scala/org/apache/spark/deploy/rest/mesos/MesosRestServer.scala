@@ -121,9 +121,9 @@ private[mesos] class MesosSubmitRequestServlet(
     val javaOpts = sparkJavaOpts ++ extraJavaOpts
 
     val securitySparkOpts: Map[String, String] = {
-      if (sparkProperties.get("spark.secret.vault.hosts").isDefined) {
+      if (vaultHost.isDefined) {
         val vaultUrl = s"${sparkProperties("spark.secret.vault.protocol")}://" +
-          s"${sparkProperties("spark.secret.vault.hosts").split(",")
+          s"${vaultHost.get.split(",")
             .map(host => s"$host:${sparkProperties("spark.secret.vault.port")}").mkString(",")}"
         (sparkProperties.get("spark.secret.vault.role"),
           sys.env.get("VAULT_ROLE"),

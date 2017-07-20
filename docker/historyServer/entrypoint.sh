@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source kms_utils.sh
+source /root/kms_utils-0.2.1.sh
+
 source commons.sh
 
 # Create krb5.conf file
@@ -28,7 +29,11 @@ EOM
 function main() {
    HDFS_HADOOP_SECURITY_AUTH_TO_LOCAL=${HDFS_HADOOP_SECURITY_AUTH_TO_LOCAL:=${auth_to_local_value}}
    VAULT_PORT=${VAULT_PORT:=8200}
-   VAULT_TOKEN=${VAULT_TOKEN:=1111111-2222-3333-4444-5555555555555}
+   VAULT_HOSTS=$VAULT_HOST
+   SERVICE_ID=$APP_NAME
+   INSTANCE=$APP_NAME
+   VAULT_URI="$VAULT_PROTOCOL://$VAULT_HOSTS:$VAULT_PORT"
+
    SPARK_HOME=/opt/sds/spark
    FQDN=${HISTORY_SERVER_FQDN:="history-server"}
    INSTANCE=${HISTORY_SERVER_FQDN:=$FQDN}
@@ -47,14 +52,19 @@ function main() {
 
    if [[ "$HDFS_KRB_ENABLE" == "true" ]]
    then
-   SPARK_KEYTAB_PATH="/etc/sds/spark/security"
-   getKrb userland $INSTANCE $FQDN "$SPARK_KEYTAB_PATH" HISTORY_SERVER_PRINCIPAL_NAME
 
-   generate_krb-conf "${KERBEROS_REALM}" "${KERBEROS_KDC_HOST}" "${KERBEROS_KADMIN_HOST}"
-   mv "/tmp/krb5.conf.tmp" "/etc/krb5.conf"
-   SPARK_HISTORY_OPTS="-Dspark.history.kerberos.principal=${HISTORY_SERVER_PRINCIPAL_NAME} -Dspark.history.kerberos.keytab=${SPARK_KEYTAB_PATH}/${FQDN}.keytab -Dspark.history.kerberos.enabled=true ${SPARK_HISTORY_OPTS}"
+     if [ ! -z "$VAULT_ROLE_ID" ]; then
+       echo "Vault role id proved, signing in"
+       login
+     fi
+     SPARK_KEYTAB_PATH="/etc/sds/spark/security"
+     getKrb userland $INSTANCE $FQDN "$SPARK_KEYTAB_PATH" HISTORY_SERVER_PRINCIPAL_NAME
+
+     generate_krb-conf "${KERBEROS_REALM}" "${KERBEROS_KDC_HOST}" "${KERBEROS_KADMIN_HOST}"
+     mv "/tmp/krb5.conf.tmp" "/etc/krb5.conf"
+     SPARK_HISTORY_OPTS="-Dspark.history.kerberos.principal=${HISTORY_SERVER_PRINCIPAL_NAME} -Dspark.history.kerberos.keytab=${SPARK_KEYTAB_PATH}/${FQDN}.keytab -Dspark.history.kerberos.enabled=true ${SPARK_HISTORY_OPTS}"
    else
-	echo 'HDFS SECURITY IS NOT ENABLE'
+	 echo 'HDFS SECURITY IS NOT ENABLE'
    fi
 
    generate_core-site "${HDFS_FS_DEFAULTFS}" "${HDFS_HADOOP_SECURITY_AUTHORIZATION}" "${HDFS_HADOOP_SECURITY_AUTHENTICATION}" "${HDFS_HADOOP_SECURITY_AUTH_TO_LOCAL}"
