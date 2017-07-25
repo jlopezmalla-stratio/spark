@@ -21,8 +21,8 @@ HISTORY_SERVER_MESOS_PASS=${HISTORY_SERVER_MESOS_PASS:=stratio}
 HISTORY_SERVER_MESOS_USER=${HISTORY_SERVER_MESOS_USER:=stratio}
 SPARK_HISTORY_OPTS=${SPARK_HISTORY_OPTS:=""}
 read -r -d '' auth_to_local_value << EOM
-RULE:[1:\$1@\$0](.*@DEMO.STRATIO.COM)s/@DEMO.STRATIO.COM//
-RULE:[2:\$1@\$0](.*@DEMO.STRATIO.COM)s/@DEMO.STRATIO.COM//
+RULE:[1:\$1@\$0](.*@${KERBEROS_REALM})s/@${KERBEROS_REALM}//
+RULE:[2:\$1@\$0](.*@${KERBEROS_REALM})s/@${KERBEROS_REALM}//
 DEFAULT
 EOM
 
@@ -33,8 +33,6 @@ function main() {
    VAULT_URI="$VAULT_PROTOCOL://$VAULT_HOSTS:$VAULT_PORT"
 
    SPARK_HOME=/opt/sds/spark
-   FQDN=${HISTORY_SERVER_FQDN:="history-server"}
-   INSTANCE=${HISTORY_SERVER_FQDN:="history-server"}
 
    mkdir -p $HADOOP_CONF_DIR
 
@@ -56,7 +54,7 @@ function main() {
        login
      fi
      SPARK_KEYTAB_PATH="/etc/sds/spark/security"
-     getKrb userland $INSTANCE $FQDN "$SPARK_KEYTAB_PATH" HISTORY_SERVER_PRINCIPAL_NAME
+     getKrb userland $INSTANCE $HISTORY_SERVER_FQDN "$SPARK_KEYTAB_PATH" HISTORY_SERVER_PRINCIPAL_NAME
 
      generate_krb-conf "${KERBEROS_REALM}" "${KERBEROS_KDC_HOST}" "${KERBEROS_KADMIN_HOST}"
      mv "/tmp/krb5.conf.tmp" "/etc/krb5.conf"
