@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0.2 (upcoming)
+
+* Dynamic Authentication for History Server
+* SDN compatibility and isolation for History Server
+
+
 ## 2.1.0.1 (July 18, 2017)
 
 * Refactor vault variables
