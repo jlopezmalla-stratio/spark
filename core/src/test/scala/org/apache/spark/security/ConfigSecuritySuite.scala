@@ -45,4 +45,28 @@ class ConfigSecuritySuite extends SparkFunSuite with Matchers {
         "datastore" -> Map("DATASTORE_ENABLE" -> "true"),
         "kafka" -> Map("KAFKA_ENABLE" -> "true")))
   }
+  /**
+    * getVaultUri
+    */
+
+  val vaultProtocol = Option("https")
+  val vaultHost = Option("vault.labs.stratio.com")
+  val vaultPort = Option("8200")
+  val expectedResult = "https://vault.labs.stratio.com:8200"
+
+  test("getVaultUri with all the parameters given") {
+      val vaultUri = ConfigSecurity.getVaultUri(vaultProtocol, vaultHost, vaultPort)
+      assert(vaultUri === Option(expectedResult))
+    }
+
+  test("getVaultUri without one of the parameters needed") {
+    val vaultUri = ConfigSecurity.getVaultUri(None, vaultHost, vaultPort)
+    assert(vaultUri === None)
+  }
+
+  test("getVaultUri without none of the parameters needed") {
+    val vaultUri = ConfigSecurity.getVaultUri(None, None, None)
+    assert(vaultUri === None)
+  }
+
 }

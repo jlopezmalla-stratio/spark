@@ -24,17 +24,22 @@ object ConfigSecurity extends Logging{
 
   var vaultToken: Option[String] = None
   val vaultHost: Option[String] = sys.env.get("VAULT_HOST")
-  val vaultUri: Option[String] = {
-    (sys.env.get("VAULT_PROTOCOL"), vaultHost, sys.env.get("VAULT_PORT")) match {
-      case (Some(vaultProtocol), Some(vaultHost), Some(vaultPort)) =>
-        val vaultUri = s"$vaultProtocol://$vaultHost:$vaultPort"
-        logDebug(s"vault uri: $vaultUri found, any Vault Connection will use it")
-        Option(vaultUri)
-      case _ =>
-        logDebug("No Vault information found, any Vault Connection will fail")
-        None
+  val vaultUri: Option[String] = getVaultUri(sys.env.get("VAULT_PROTOCOL"),
+    vaultHost, sys.env.get("VAULT_PORT"))
+  
+    def getVaultUri(vaultProtocol: Option[String],
+                    vaultHost: Option[String],
+                    vaultPort: Option[String]): Option[String] = {
+      (vaultProtocol, vaultHost, vaultPort) match {
+        case (Some (vaultProtocol), Some (vaultHost), Some (vaultPort) ) =>
+          val vaultUri = s"$vaultProtocol://$vaultHost:$vaultPort"
+          logDebug (s"vault uri: $vaultUri found, any Vault Connection will use it")
+          Option (vaultUri)
+        case _ =>
+          logDebug ("No Vault information found, any Vault Connection will fail")
+          None
+      }
     }
-  }
 
   def prepareEnvironment(vaultAppToken: Option[String] = None,
                          vaulHost: Option[String] = None): Map[String, String] = {
