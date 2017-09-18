@@ -2,6 +2,11 @@ FROM qa.stratio.com/centos:7
 
 ARG VERSION
 
+COPY dist /opt/sds/spark
+
+COPY docker/historyServer/entrypoint.sh /
+COPY docker/historyServer/commons.sh /
+
 RUN yum -y update \
     && yum -y upgrade \
     && yum -y install java-1.8.0-openjdk curl wget\
@@ -13,12 +18,8 @@ RUN yum -y update \
     && ln -s /usr/local/bin/jq /usr/bin/ \
     && mkdir -p /var/sds/spark/ \
     && wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 \
-    && chmod +x /usr/local/bin/dumb-init
-
-COPY dist /opt/sds/spark
-
-COPY docker/historyServer/entrypoint.sh /
-COPY docker/historyServer/commons.sh /
+    && chmod +x /usr/local/bin/dumb-init \
+    && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/dumb-init", "/entrypoint.sh"]
 
