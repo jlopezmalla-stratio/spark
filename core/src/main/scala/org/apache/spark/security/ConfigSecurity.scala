@@ -24,7 +24,7 @@ object ConfigSecurity extends Logging{
 
   var vaultToken: Option[String] = None
   val vaultUri: Option[String] = getVaultUri(sys.env.get("VAULT_PROTOCOL"),
-    sys.env.get("VAULT_HOST"), sys.env.get("VAULT_PORT"))
+    sys.env.get("VAULT_HOSTS"), sys.env.get("VAULT_PORT"))
   
     def getVaultUri(vaultProtocol: Option[String],
                     vaultHost: Option[String],

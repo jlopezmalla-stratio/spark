@@ -701,11 +701,11 @@ private[spark] class MesosClusterScheduler(
 
           var sparkProperties = state.driverDescription.conf.getAll.toMap
           if (sparkProperties.get("spark.secret.vault.protocol").isDefined
-            && sparkProperties.get("spark.secret.vault.host").isDefined
+            && sparkProperties.get("spark.secret.vault.hosts").isDefined
             && sparkProperties.get("spark.secret.vault.port").isDefined)
           {
             val vaultUrl = s"${sparkProperties("spark.secret.vault.protocol")}://" +
-                s"${sparkProperties("spark.secret.vault.host").split(",")
+                s"${sparkProperties("spark.secret.vault.hosts").split(",")
                   .map(host => s"$host:${sparkProperties("spark.secret.vault.port")}")
                   .mkString(",")}"
             val role = sparkProperties("spark.secret.vault.role")

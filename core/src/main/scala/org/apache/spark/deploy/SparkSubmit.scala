@@ -710,7 +710,7 @@ object SparkSubmit extends CommandLineUtils {
     }
 
     val vaultProtocol = args.sparkProperties.get("spark.secret.vault.protocol")
-    val vaultHost = args.sparkProperties.get("spark.secret.vault.host")
+    val vaultHost = args.sparkProperties.get("spark.secret.vault.hosts")
     val vaultPort = args.sparkProperties.get("spark.secret.vault.port")
 
     val vaultUrlParams = (vaultProtocol, vaultHost, vaultPort)
