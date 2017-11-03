@@ -23,17 +23,16 @@ import java.util.concurrent.CountDownLatch
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
-
 import com.google.common.base.Splitter
 import org.apache.mesos.{MesosSchedulerDriver, Protos, Scheduler, SchedulerDriver}
 import org.apache.mesos.Protos.{TaskState => MesosTaskState, _}
 import org.apache.mesos.Protos.FrameworkInfo.Capability
 import org.apache.mesos.protobuf.{ByteString, GeneratedMessage}
-
 import org.apache.spark.{SparkConf, SparkContext, SparkException}
 import org.apache.spark.TaskState
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
+import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.util.Utils
 
 
@@ -79,13 +78,34 @@ trait MesosSchedulerUtils extends Logging {
     }
     fwInfoBuilder.setHostname(Option(conf.getenv("SPARK_PUBLIC_DNS")).getOrElse(
       conf.get(DRIVER_HOST_ADDRESS)))
-    conf.getOption("spark.mesos.principal").foreach { principal =>
-      fwInfoBuilder.setPrincipal(principal)
-      credBuilder.setPrincipal(principal)
+
+    val vaultUri = ConfigSecurity.vaultUri
+
+    if(vaultUri.isDefined && conf.getOption("spark.mesos.role").isDefined) {
+
+      val token =
+        if (sys.env.get("VAULT_TOKEN").isDefined) {
+          logDebug("VAULT_TOKEN provided as environment variable")
+          sys.env.get("VAULT_TOKEN").get
+        } else {
+          logDebug("VAULT_TOKEN obtained from VAULT_ROLE_ID and VAULT_SECRET_ID")
+          VaultHelper.getTokenFromAppRole(vaultUri.get,
+            sys.env.get("VAULT_ROLE_ID").get, sys.env.get("VAULT_SECRET_ID").get)
+        }
+
+      val(mSecret, mPrincipal) =
+        VaultHelper.getMesosPrincipalAndSecret(vaultUri.get,
+          token, conf.getOption("spark.mesos.role").get)
+
+      conf.set("spark.mesos.principal", mPrincipal)
+      fwInfoBuilder.setPrincipal(mPrincipal)
+      credBuilder.setPrincipal(mPrincipal)
+
+      conf.set("spark.mesos.secret", mSecret)
+      credBuilder.setSecret(mSecret)
+
     }
-    conf.getOption("spark.mesos.secret").foreach { secret =>
-      credBuilder.setSecret(secret)
-    }
+
     if (credBuilder.hasSecret && !fwInfoBuilder.hasPrincipal) {
       throw new SparkException(
         "spark.mesos.principal must be configured when spark.mesos.secret is set")
