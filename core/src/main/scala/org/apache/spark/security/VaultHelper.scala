@@ -89,16 +89,23 @@ object VaultHelper extends Logging {
     val principal = data.find(_._1.contains("principal")).get._2.asInstanceOf[String]
     (keytab64, principal)
   }
+
   // TODO refactor these two functions into one
   def getMesosPrincipalAndSecret(vaultUrl: String,
                                  token: String,
                                  instanceName: String): (String, String) = {
-    val requestUrl = s"$vaultUrl/v1/userland/passwords/$instanceName/mesos"
-    logDebug(s"Requesting Mesos principal and secret: $requestUrl")
+    getPassPrincipalFromVault(vaultUrl, s"/v1/userland/passwords/$instanceName/mesos", token)
+  }
+
+  def getPassPrincipalFromVault(vaultUrl: String,
+                                vaultPath: String,
+                                token: String): (String, String) = {
+    val requestUrl = s"$vaultUrl/$vaultPath"
+    logDebug(s"Requesting user and pass: $requestUrl")
     val data = HTTPHelper.executeGet(requestUrl, "data", Some(Seq(("X-Vault-Token", token))))
-    val mesosSecret = data.find(_._1.contains("pass")).get._2.asInstanceOf[String]
-    val mesosPrincipal = data.find(_._1.contains("user")).get._2.asInstanceOf[String]
-    (mesosSecret, mesosPrincipal)
+    val pass = data.find(_._1.contains("pass")).get._2.asInstanceOf[String]
+    val principal = data.find(_._1.contains("user")).get._2.asInstanceOf[String]
+    (pass, principal)
   }
 
   def getTrustStore(vaultUrl: String, token: String, certVaultPath: String): String = {
