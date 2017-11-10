@@ -110,11 +110,10 @@ object ConfigSecurity extends Logging{
       case ("kerberos", options) =>
         KerberosConfig.prepareEnviroment(vaultHost, vaultToken, options)
       case ("datastore", options) =>
-        val (optionsUserPass, otherOptions) = options.partition{case (key, _) =>
-          key.toLowerCase.startsWith("user_pass")}
-        UserPassConfig.prepareEnvironment(vaultHost, vaultToken, optionsUserPass) ++
-          SSLConfig.prepareEnvironment(
-            vaultHost, vaultToken, SSLConfig.sslTypeDataStore, otherOptions)
+        SSLConfig.prepareEnvironment(
+            vaultHost, vaultToken, SSLConfig.sslTypeDataStore, options)
+      case ("password", options) =>
+        UserPassConfig.prepareEnvironment(vaultHost, vaultToken, options)
       case _ => Map.empty[String, String]
     }
 
