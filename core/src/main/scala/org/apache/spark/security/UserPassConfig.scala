@@ -20,7 +20,7 @@ object UserPassConfig {
   def prepareEnvironment(vaultHost: String,
                          vaultToken: String,
                          options: Map[String, String]): Map[String, String] = {
-    options.filter(_._1.endsWith("_VAULT_USER_PASS_PATH")).flatMap{case (_, path) =>
+    options.filter(_._1.endsWith("USER_PASS_VAULT_PATH")).flatMap{case (_, path) =>
       val (pass, user) = VaultHelper.getPassPrincipalFromVault(vaultHost, path, vaultToken)
       Seq(("spark.datastore.user", user), ("spark.datastore.pass", pass))
     }
