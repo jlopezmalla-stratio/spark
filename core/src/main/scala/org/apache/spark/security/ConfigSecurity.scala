@@ -112,8 +112,8 @@ object ConfigSecurity extends Logging{
       case ("datastore", options) =>
         SSLConfig.prepareEnvironment(
             vaultHost, vaultToken, SSLConfig.sslTypeDataStore, options)
-      case ("password", options) =>
-        UserPassConfig.prepareEnvironment(vaultHost, vaultToken, options)
+      case ("db", options) =>
+        DBConfig.prepareEnvironment(vaultHost, vaultToken, options)
       case _ => Map.empty[String, String]
     }
 
