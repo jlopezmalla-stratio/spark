@@ -109,7 +109,10 @@ object ConfigSecurity extends Logging{
       case ("kerberos", options) =>
         KerberosConfig.prepareEnviroment(vaultHost, vaultToken, options)
       case ("datastore", options) =>
-        SSLConfig.prepareEnvironment(vaultHost, vaultToken, SSLConfig.sslTypeDataStore, options)
+          SSLConfig.prepareEnvironment(
+            vaultHost, vaultToken, SSLConfig.sslTypeDataStore, options)
+      case ("db", options) =>
+        DBConfig.prepareEnvironment(vaultHost, vaultToken, options)
       case _ => Map.empty[String, String]
     }
 
