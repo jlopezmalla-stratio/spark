@@ -235,7 +235,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
     val parts: Array[Partition] = predicates.zipWithIndex.map { case (part, i) =>
       JDBCPartition(part, i) : Partition
     }
-    val relation = JDBCRelation(parts, options)(sparkSession)
+    val relation = JDBCRelation(parts, options, userSpecifiedSchema)(sparkSession)
     sparkSession.baseRelationToDataFrame(relation)
   }
 
@@ -342,7 +342,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
   }
 
   /**
-   * Loads a CSV file and returns the result as a `DataFrame`. See the documentation on the
+   * Loads a CSV file and returns the result   as a `DataFrame`. See the documentation on the
    * other overloaded `csv()` method for more details.
    *
    * @since 2.0.0

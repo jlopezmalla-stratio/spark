@@ -98,10 +98,12 @@ private[sql] object JDBCRelation extends Logging {
     }
     ans.toArray
   }
-}
+}userSchema
 
 private[sql] case class JDBCRelation(
-    parts: Array[Partition], jdbcOptions: JDBCOptions)(@transient val sparkSession: SparkSession)
+    parts: Array[Partition],
+    jdbcOptions: JDBCOptions,
+    userSchema: Option[StructType] = None)(@transient val sparkSession: SparkSession)
   extends BaseRelation
   with PrunedFilteredScan
   with InsertableRelation {
@@ -110,7 +112,9 @@ private[sql] case class JDBCRelation(
 
   override val needConversion: Boolean = false
 
-  override val schema: StructType = JDBCRDD.resolveTable(jdbcOptions)
+  // TODO: Carrafour BR JDBC do not accept user defnined schemas
+
+  override val schema: StructType = userSchema.getOrElse(JDBCRDD.resolveTable(jdbcOptions))
 
   // Check if JDBCRDD.compileFilter can accept input filters
   override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
