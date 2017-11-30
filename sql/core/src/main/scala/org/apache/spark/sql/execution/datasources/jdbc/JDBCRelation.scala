@@ -98,7 +98,7 @@ private[sql] object JDBCRelation extends Logging {
     }
     ans.toArray
   }
-}userSchema
+}
 
 private[sql] case class JDBCRelation(
     parts: Array[Partition],
