@@ -115,5 +115,4 @@ object ConfigSecurity extends Logging{
         DBConfig.prepareEnvironment(vaultHost, vaultToken, options)
       case _ => Map.empty[String, String]
     }
-
 }

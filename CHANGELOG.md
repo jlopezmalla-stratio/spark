@@ -4,6 +4,7 @@
 
 * Added mesos constraints management to spark driver
 * Added a secure way to retrieve user and passwords information from vault
+* History Server could read from HDFS in HA using enviroment variables
 
 ## 2.2.0.1 (November 06, 2017)
 
