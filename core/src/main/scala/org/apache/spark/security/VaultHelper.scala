@@ -21,6 +21,7 @@ import org.apache.spark.internal.Logging
 object VaultHelper extends Logging {
 
   var token: Option[String] = None
+  var vaultURI: Option[String] = None
   lazy val jsonTempTokenTemplate: String = "{ \"token\" : \"_replace_\" }"
   lazy val jsonRoleSecretTemplate: String = "{ \"role_id\" : \"_replace_role_\"," +
     " \"secret_id\" : \"_replace_secret_\"}"
@@ -145,5 +146,18 @@ object VaultHelper extends Logging {
     logDebug(s"Requesting real Token: $requestUrl")
     HTTPHelper.executePost(requestUrl,
       "data", Some(Seq(("X-Vault-Token", token))))("token").asInstanceOf[String]
+  }
+
+  def retrieveSecret(secretVaultPath: String, idJSonSecret: String): String = {
+    require(vaultURI.isDefined,
+      "Vault URI not defined please check environment variables" +
+        " SPARK_VAULT_PROTOCOL, SPARK_VAULT_HOST and SPARK_VAULT_PORT")
+    val requestUrl = s"${vaultURI.get}/$secretVaultPath"
+    logDebug(s"Retriving Secret: $secretVaultPath")
+    require(token.isDefined,
+      "A porper Vault Token is required in order to retrieve" +
+        " this secret, please check de Vault Token logic")
+    HTTPHelper.executePost(requestUrl,
+      "data", Some(Seq(("X-Vault-Token", token.get))))(idJSonSecret).asInstanceOf[String]
   }
 }

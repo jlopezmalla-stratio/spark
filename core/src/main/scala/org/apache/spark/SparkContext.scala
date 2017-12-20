@@ -1492,6 +1492,27 @@ class SparkContext(config: SparkConf) extends Logging {
     bc
   }
 
+
+  /**
+    * Broadcast a read-only variable to the cluster, returning a
+    * [[org.apache.spark.broadcast.Broadcast]] object for reading it in distributed functions.
+    * The variable will be sent to each cluster only once.
+    *
+    * @param value value to broadcast to the Spark nodes
+    * @return `Broadcast` object, a read-only variable cached on each machine
+    */
+  def secretBroadcast(secretVaultPath: String,
+                      idJson: String): Broadcast[String] = {
+    assertNotStopped()
+    require(!classOf[RDD[_]].isAssignableFrom(classTag[String].runtimeClass),
+      "Can not directly broadcast RDDs; instead, call collect() and broadcast the result.")
+    val bc = env.broadcastManager.newSecretBroadcast(secretVaultPath, idJson, isLocal)
+    val callSite = getCallSite
+    logInfo("Created secret broadcast " + bc.id + " from " + callSite.shortForm)
+    cleaner.foreach(_.registerBroadcastForCleanup(bc))
+    bc
+  }
+
   /**
    * Add a file to be downloaded with this Spark job on every node.
    *

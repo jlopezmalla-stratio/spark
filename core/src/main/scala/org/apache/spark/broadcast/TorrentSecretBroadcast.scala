@@ -17,7 +17,7 @@
 
 package org.apache.spark.broadcast
 
-import java.io._
+import java.io.{InputStream, ObjectOutputStream, SequenceInputStream}
 import java.nio.ByteBuffer
 import java.util.zip.Adler32
 
@@ -28,10 +28,12 @@ import scala.util.Random
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.io.CompressionCodec
+import org.apache.spark.security.VaultHelper
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.storage._
-import org.apache.spark.util.{ByteBufferInputStream, Utils}
+import org.apache.spark.util.Utils
 import org.apache.spark.util.io.{ChunkedByteBuffer, ChunkedByteBufferOutputStream}
+
 
 /**
  * A BitTorrent-like implementation of [[org.apache.spark.broadcast.Broadcast]].
@@ -49,21 +51,29 @@ import org.apache.spark.util.io.{ChunkedByteBuffer, ChunkedByteBufferOutputStrea
  * This prevents the driver from being the bottleneck in sending out multiple copies of the
  * broadcast data (one per executor).
  *
+ * The secret stored in this class will be the metainformation needed to connect with the secret
+ * management system and retrieve its secrets
+ *
  * When initialized, TorrentBroadcast objects read SparkEnv.get.conf.
  *
  * @param obj object to broadcast
  * @param id A unique identifier for the broadcast variable.
  */
-private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
-  extends Broadcast[T](id) with Logging with Serializable {
-
+private[spark] class TorrentSecretBroadcast(secretVaultPath: String,
+                                            idJson: String,
+                                            isLocal: Boolean,
+                                            id: Long) extends Broadcast[String](id) {
   /**
    * Value of the broadcast object on executors. This is reconstructed by [[readBroadcastBlock]],
    * which builds this value by reading blocks from the driver and/or other executors.
    *
    * On the driver, if the value is required, it is read lazily from the block manager.
    */
-  @transient private lazy val _value: T = readBroadcastBlock()
+  @transient private lazy val _value: String =
+  {
+    val (secretVaultPath, idJson) = readBroadcastBlock()
+    VaultHelper.retrieveSecret(secretVaultPath, idJson)
+  }
 
   /** The compression codec to use, or None if compression is disabled */
   @transient private var compressionCodec: Option[CompressionCodec] = _
@@ -85,7 +95,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   private val broadcastId = BroadcastBlockId(id)
 
   /** Total number of blocks this broadcast variable contains. */
-  private val numBlocks: Int = writeBlocks(obj)
+  private val numBlocks: Int = writeBlocks((secretVaultPath, idJson))
 
   /** Whether to generate checksum for blocks or not. */
   private var checksumEnabled: Boolean = false
@@ -114,7 +124,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
    * @param value the object to divide
    * @return number of blocks this broadcast variable is divided into
    */
-  private def writeBlocks(value: T): Int = {
+  private def writeBlocks(value: (String, String)): Int = {
     import StorageLevel._
     // Store a copy of the broadcast variable in the driver so that tasks run on the driver
     // do not create a duplicate copy of the broadcast variable's value.
@@ -203,14 +213,14 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
     out.defaultWriteObject()
   }
 
-  private[spark] def readBroadcastBlock(): T = Utils.tryOrIOException {
+  private def readBroadcastBlock(): (String, String) = Utils.tryOrIOException {
     TorrentBroadcast.synchronized {
       setConf(SparkEnv.get.conf)
       val blockManager = SparkEnv.get.blockManager
       blockManager.getLocalValues(broadcastId) match {
         case Some(blockResult) =>
           if (blockResult.data.hasNext) {
-            val x = blockResult.data.next().asInstanceOf[T]
+            val x = blockResult.data.next().asInstanceOf[(String, String)]
             releaseLock(broadcastId)
             x
           } else {
@@ -223,7 +233,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
           logInfo("Reading broadcast variable " + id + " took" + Utils.getUsedTimeMs(startTimeMs))
 
           try {
-            val obj = TorrentBroadcast.unBlockifyObject[T](
+            val obj = TorrentBroadcast.unBlockifyObject[(String, String)](
               blocks.map(_.toInputStream()), SparkEnv.get.serializer, compressionCodec)
             // Store the merged copy in BlockManager so other tasks on this executor don't
             // need to re-fetch it.
@@ -261,7 +271,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
 }
 
 
-private object TorrentBroadcast extends Logging {
+private object TorrentSecretBroadcast extends Logging {
 
   def blockifyObject[T: ClassTag](
       obj: T,

@@ -34,6 +34,20 @@ private[spark] class TorrentBroadcastFactory extends BroadcastFactory {
     new TorrentBroadcast[T](value_, id)
   }
 
+  /**
+    * Creates a new broadcast variable.
+    *
+    * @param secretRepositoryValue secret repository access variable to broadcast
+    * @param isLocal               whether we are in local mode (single JVM process)
+    * @param id                    unique id representing this broadcast variable
+    */
+  override def newSecretBroadcast(secretVaultPath: String,
+                                  idJson: String,
+                                  isLocal: Boolean,
+                                  id: Long): Broadcast[String] = {
+    new TorrentSecretBroadcast(secretVaultPath, idJson, isLocal, id)
+  }
+
   override def stop() { }
 
   /**
@@ -44,4 +58,5 @@ private[spark] class TorrentBroadcastFactory extends BroadcastFactory {
   override def unbroadcast(id: Long, removeFromDriver: Boolean, blocking: Boolean) {
     TorrentBroadcast.unpersist(id, removeFromDriver, blocking)
   }
+
 }
