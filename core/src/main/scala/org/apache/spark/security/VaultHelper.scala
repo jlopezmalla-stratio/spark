@@ -21,7 +21,7 @@ import org.apache.spark.internal.Logging
 object VaultHelper extends Logging {
 
   var token: Option[String] = None
-  var vaultURI: Option[String] = None
+  var vaultURI: Option[String] = sys.env.get("VAULT_URI")
   lazy val jsonTempTokenTemplate: String = "{ \"token\" : \"_replace_\" }"
   lazy val jsonRoleSecretTemplate: String = "{ \"role_id\" : \"_replace_role_\"," +
     " \"secret_id\" : \"_replace_secret_\"}"
