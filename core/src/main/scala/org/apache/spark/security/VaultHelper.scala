@@ -164,7 +164,7 @@ object VaultHelper extends Logging {
     require(token.isDefined,
       "A porper Vault Token is required in order to retrieve" +
         " this secret, please check de Vault Token logic")
-    HTTPHelper.executePost(requestUrl,
+    HTTPHelper.executeGet(requestUrl,
       "data", Some(Seq(("X-Vault-Token", token.get))))(idJSonSecret).asInstanceOf[String]
   }
 }
