@@ -151,27 +151,10 @@ object VaultHelper extends Logging {
   }
 
   def retrieveSecret(secretVaultPath: String, idJSonSecret: String): String = {
-    require(vaultURI.isDefined,
-      "Vault URI not defined please check environment variables" +
-        " SPARK_VAULT_PROTOCOL, SPARK_VAULT_HOST and SPARK_VAULT_PORT")
-    val requestUrl = s"${vaultURI.get}/$secretVaultPath"
     logDebug(s"Retriving Secret: $secretVaultPath")
-
-    if(!token.isDefined) {
-      token = if (sys.env.get("VAULT_TOKEN").isDefined) Option(sys.env("VAULT_TOKEN"))
-      else if (sys.env.get("VAULT_TEMP_TOKEN").isDefined) Try{
-        VaultHelper.getRealToken(sys.env("VAULT_URI"), sys.env("VAULT_TEMP_TOKEN"))}.toOption
-      else
-      {
-        Option(VaultHelper.getTokenFromAppRole(vaultURI.get,
-          sys.env("VAULT_ROLE_ID"),
-          sys.env("VAULT_SECRET_ID")))
-      }
-    }
-
-    require(token.isDefined,
-      "A porper Vault Token is required in order to retrieve" +
-        " this secret, please check de Vault Token logic")
+    //TODO: Change vaultURI to ConfigSecurity.vaultURI
+    val requestUrl = s"${vaultURI.get}/$secretVaultPath"
+    //TODO: Change token to ConfigSecurity.token
     HTTPHelper.executeGet(requestUrl,
       "data", Some(Seq(("X-Vault-Token", token.get))))(idJSonSecret).asInstanceOf[String]
   }
