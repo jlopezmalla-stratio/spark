@@ -18,6 +18,8 @@ package org.apache.spark.security
 
 import org.apache.spark.internal.Logging
 
+import scala.util.Try
+
 object VaultHelper extends Logging {
 
   var token: Option[String] = None
@@ -156,9 +158,15 @@ object VaultHelper extends Logging {
     logDebug(s"Retriving Secret: $secretVaultPath")
 
     if(!token.isDefined) {
-      token = Option(VaultHelper.getTokenFromAppRole(vaultURI.get,
-        sys.env("VAULT_ROLE_ID"),
-        sys.env("VAULT_SECRET_ID")))
+      token = if (sys.env.get("VAULT_TOKEN").isDefined) Option(sys.env("VAULT_TOKEN"))
+      else if (sys.env.get("VAULT_TEMP_TOKEN").isDefined) Try{
+        VaultHelper.getRealToken(sys.env("VAULT_URI"), sys.env("VAULT_TEMP_TOKEN"))}.toOption
+      else
+      {
+        Option(VaultHelper.getTokenFromAppRole(vaultURI.get,
+          sys.env("VAULT_ROLE_ID"),
+          sys.env("VAULT_SECRET_ID")))
+      }
     }
 
     require(token.isDefined,
