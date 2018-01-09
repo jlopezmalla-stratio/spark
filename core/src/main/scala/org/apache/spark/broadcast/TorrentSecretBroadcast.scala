@@ -63,17 +63,17 @@ private[spark] class TorrentSecretBroadcast(secretVaultPath: String,
                                             idJson: String,
                                             isLocal: Boolean,
                                             id: Long) extends Broadcast[String](id) {
-  /**
-   * Value of the broadcast object on executors. This is reconstructed by [[readBroadcastBlock]],
-   * which builds this value by reading blocks from the driver and/or other executors.
-   *
-   * On the driver, if the value is required, it is read lazily from the block manager.
-   */
-  @transient private lazy val _value: String =
-  {
-    val (secretVaultPath, idJson) = readBroadcastBlock()
-    VaultHelper.retrieveSecret(secretVaultPath, idJson)
-  }
+//  /**
+//   * Value of the broadcast object on executors. This is reconstructed by [[readBroadcastBlock]],
+//   * which builds this value by reading blocks from the driver and/or other executors.
+//   *
+//   * On the driver, if the value is required, it is read lazily from the block manager.
+//   */
+//  @transient private lazy val _value: String =
+//  {
+//    val (secretVaultPath, idJson) = readBroadcastBlock()
+//    VaultHelper.retrieveSecret(secretVaultPath, idJson)
+//  }
 
   /** The compression codec to use, or None if compression is disabled */
   @transient private var compressionCodec: Option[CompressionCodec] = _
@@ -103,7 +103,7 @@ private[spark] class TorrentSecretBroadcast(secretVaultPath: String,
   private var checksums: Array[Int] = _
 
   override protected def getValue() = {
-    _value
+    VaultHelper.retrieveSecret(secretVaultPath, idJson)
   }
 
   private def calcChecksum(block: ByteBuffer): Int = {
