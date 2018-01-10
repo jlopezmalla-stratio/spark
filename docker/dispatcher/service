@@ -14,7 +14,7 @@ function export_daemon_opts() {
 }
 
 function set_log_level() {
-    sed "s,<LOG_LEVEL>,${SPARK_LOG_LEVEL}," \
+    sed "s,log4j.rootCategory=INFO,log4j.rootCategory=${SPARK_LOG_LEVEL}," \
         /opt/spark/dist/conf/log4j.properties.template >/opt/spark/dist/conf/log4j.properties
 }
 

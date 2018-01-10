@@ -124,6 +124,12 @@ private[spark] class BlockManager(
   private[spark] val externalShuffleServiceEnabled =
     conf.getBoolean("spark.shuffle.service.enabled", false)
 
+
+  // If Calico is being used, we use as host the previous configuration created
+  // if not the hostname is the default host
+  private val externalShuffleHost =
+    conf.getOption("spark.shuffle.service.host").getOrElse(blockTransferService.hostName)
+
   val diskBlockManager = {
     // Only perform cleanup if an external service is not serving our shuffle files.
     val deleteFilesOnStop =
@@ -233,8 +239,9 @@ private[spark] class BlockManager(
     blockManagerId = if (idFromMaster != null) idFromMaster else id
 
     shuffleServerId = if (externalShuffleServiceEnabled) {
-      logInfo(s"external shuffle service port = $externalShuffleServicePort")
-      BlockManagerId(executorId, blockTransferService.hostName, externalShuffleServicePort)
+      logInfo(s"external shuffle service  host:port = " +
+        s"$externalShuffleHost:$externalShuffleServicePort")
+      BlockManagerId(executorId, externalShuffleHost, externalShuffleServicePort)
     } else {
       blockManagerId
     }

@@ -199,11 +199,16 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       Utils.libraryPathEnvPrefix(Seq(p))
     }.getOrElse("")
 
-    environment.addVariables(
-      Environment.Variable.newBuilder()
-        .setName("SPARK_EXECUTOR_OPTS")
-        .setValue(extraJavaOpts)
-        .build())
+    if (shuffleServiceEnabled) {
+      logDebug(s"Setting -Dspark.shuffle.service.host hostname to ${offer.getHostname}")
+
+      environment.addVariables(
+        Environment.Variable.newBuilder()
+          .setName("SPARK_EXECUTOR_OPTS")
+          .setValue(extraJavaOpts +
+            s"-Dspark.shuffle.service.host=${offer.getHostname}")
+          .build())
+    }
 
     sc.executorEnvs.foreach { case (key, value) =>
       environment.addVariables(Environment.Variable.newBuilder()

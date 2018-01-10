@@ -3,6 +3,8 @@
 ## 2.2.0.4 (upcoming)
 
 * Added Tenant Name variable being able to have Spark Dispatcher with different name
+* Enable Debug mode
+* Support Dynamic allocation with Calico (External shuffle working in HOST mode)
 
 ## 2.2.0.3 (December 27, 2017)
 
