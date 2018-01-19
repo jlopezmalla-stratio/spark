@@ -20,7 +20,6 @@ import org.apache.spark.internal.Logging
 
 object VaultHelper extends Logging {
 
-
   lazy val jsonTempTokenTemplate: String = "{ \"token\" : \"_replace_\" }"
   lazy val jsonRoleSecretTemplate: String = "{ \"role_id\" : \"_replace_role_\"," +
     " \"secret_id\" : \"_replace_secret_\"}"
@@ -40,7 +39,6 @@ object VaultHelper extends Logging {
 
   def loadCas: Unit = {
     val cassPass = getAllCasAndPassword
-
     HTTPHelper.secureClient = Some(HTTPHelper.generateSecureClient(cassPass))
   }
 
@@ -60,7 +58,7 @@ object VaultHelper extends Logging {
 
   private def getCa(ca: String): String = {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/$ca"
-    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    logDebug(s"Requesting ca from Vault: $requestUrl")
     HTTPHelper.executeGet(requestUrl, "data",
       Some(Seq(("X-Vault-Token",
         ConfigSecurity.vaultToken.get))))(s"${ca}_crt").asInstanceOf[String]
@@ -68,7 +66,7 @@ object VaultHelper extends Logging {
 
   private def getCAPass(ca: String): String = {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/$ca/keystore"
-    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    logDebug(s"Requesting ca Pass from Vault: $requestUrl")
     HTTPHelper.executeGet(requestUrl, "data",
       Some(Seq(("X-Vault-Token",
         ConfigSecurity.vaultToken.get))))(s"pass").asInstanceOf[String]
@@ -84,7 +82,7 @@ object VaultHelper extends Logging {
 
   private def getCAsPass: Seq[String] = {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/?list=true"
-    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    logDebug(s"Requesting ca-trust certificates passwords list from Vault: $requestUrl")
     HTTPHelper.executeGet(requestUrl, "data",
       Some(Seq(("X-Vault-Token",
         ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
