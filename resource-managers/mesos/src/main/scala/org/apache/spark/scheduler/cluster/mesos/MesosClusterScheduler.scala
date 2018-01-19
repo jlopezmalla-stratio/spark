@@ -483,7 +483,8 @@ private[spark] class MesosClusterScheduler(
     val replicatedOptionsBlacklist = Set(
       "spark.jars", // Avoids duplicate classes in classpath
       "spark.submit.deployMode", // this would be set to `cluster`, but we need client
-      "spark.master" // this contains the address of the dispatcher, not master
+      "spark.master", // this contains the address of the dispatcher, not master
+      "spark.shuffle.service.host" // Prevent to propagate any shuffle service host
     )
     val defaultConf = conf.getAllWithPrefix("spark.mesos.dispatcher.driverDefault.").toMap
     val driverConf = desc.conf.getAll

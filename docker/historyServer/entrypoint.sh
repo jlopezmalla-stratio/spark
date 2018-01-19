@@ -26,6 +26,15 @@ RULE:[2:\$1@\$0](.*@${KERBEROS_REALM})s/@${KERBEROS_REALM}//
 DEFAULT
 EOM
 
+function set_log_level() {
+    if [ ! -z "$SPARK_LOG_LEVEL" ]; then
+        sed "s,log4j.rootCategory=INFO,log4j.rootCategory=${SPARK_LOG_LEVEL}," \
+            /opt/spark/dist/conf/log4j.properties.template >/opt/spark/dist/conf/log4j.properties
+    else
+        echo "No SPARK_LOG_LEVEL provided. Leaving as default"
+    fi
+}
+
 function main() {
    HDFS_HADOOP_SECURITY_AUTH_TO_LOCAL=${HDFS_HADOOP_SECURITY_AUTH_TO_LOCAL:=${auth_to_local_value}}
    VAULT_PORT=${VAULT_PORT:=8200}
@@ -35,6 +44,8 @@ function main() {
    SPARK_HOME=/opt/sds/spark
 
    mkdir -p $HADOOP_CONF_DIR
+
+   set_log_level
 
    if [[ "$SECURED_MESOS" == "true" ]]
    then

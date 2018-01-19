@@ -15,5 +15,6 @@ fi
 
 export DISPATCHER_UI_WEB_PROXY_BASE="/service/${DCOS_SERVICE_NAME}"
 
-# start service
-exec runsvdir -P /etc/service
+
+#Start spark
+/etc/service/spark/run
