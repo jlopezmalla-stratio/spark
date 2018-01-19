@@ -16,7 +16,9 @@
  */
 package org.apache.spark.security
 
+
 import scala.util.{Failure, Success, Try}
+
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
@@ -132,12 +134,13 @@ object ConfigSecurity extends Logging {
   }
 
   private def prepareEnvironment(secretOptions: Map[String,
-                                   Map[String, String]]): Map[String, String] =
+                                   Map[String, String]]): Map[String, String] = {
+    VaultHelper.loadCas
     secretOptions flatMap {
       case ("kerberos", options) =>
         KerberosConfig.prepareEnviroment(options)
       case ("datastore", options) =>
-          SSLConfig.prepareEnvironment(SSLConfig.sslTypeDataStore, options)
+        SSLConfig.prepareEnvironment(SSLConfig.sslTypeDataStore, options)
       case ("db", options) =>
         DBConfig.prepareEnvironment(options)
       case ("mesos", options) =>

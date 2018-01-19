@@ -17,20 +17,48 @@
 
 package org.apache.spark.security
 
-import java.io.{BufferedReader, InputStreamReader}
+import java.io.{BufferedReader, File, InputStreamReader}
+import java.security.cert.X509Certificate
 
+import scala.annotation.tailrec
 import scala.util.parsing.json.JSON
 
 import org.apache.http.client.HttpClient
 import org.apache.http.client.methods.{HttpGet, HttpPost, HttpUriRequest}
 import org.apache.http.entity.StringEntity
-import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.impl.client.HttpClients
+import org.apache.http.ssl.{SSLContextBuilder, TrustStrategy}
 
 import org.apache.spark.internal.Logging
 
 object HTTPHelper extends Logging{
 
-  lazy val client: HttpClient = HttpClientBuilder.create().build()
+  lazy val clientNaive: HttpClient = {
+    val sslContext = SSLContextBuilder.create().loadTrustMaterial(null, new TrustStrategy() {
+      override def isTrusted(x509Certificates: Array[X509Certificate], s: String): Boolean = true
+    } ).build()
+
+    HttpClients.custom().setSSLContext(sslContext).build
+  }
+
+  var secureClient: Option[HttpClient] = None
+
+  def generateSecureClient(cassPass: Seq[(String, String)]): HttpClient = {
+    val sslContext = SSLContextBuilder.create()
+    @tailrec
+    def loadCa(cassPass: Seq[(String, String)],
+               result: SSLContextBuilder): SSLContextBuilder = {
+      if (cassPass.isEmpty) result
+      else {
+        val (caFileName, caPass) = cassPass.head
+        val caFile = new File(caFileName)
+        val actualRes = result.loadTrustMaterial(caFile, caPass.toCharArray)
+        loadCa(cassPass.tail, actualRes)
+      }
+    }
+
+    HttpClients.custom().setSSLContext(loadCa(cassPass, sslContext).build()).build
+  }
 
   def executePost(requestUrl: String,
                   parentField: String,
@@ -55,6 +83,8 @@ object HTTPHelper extends Logging{
     headers.map(head => head.foreach { case (head, value) => uriRequest.addHeader(head, value) })
 
     entities.map(entity => uriRequest.asInstanceOf[HttpPost].setEntity(new StringEntity(entity)))
+
+    val client = secureClient.getOrElse(clientNaive)
 
     val response = client.execute(uriRequest)
 
