@@ -94,10 +94,11 @@ object SSLConfig extends Logging {
           s"${ConfigSecurity.secretsFolder}/key.pkcs8",
         s"$sparkSSLPrefix${sslType.toLowerCase}.caPem.path" ->
           s"${ConfigSecurity.secretsFolder}/ca.crt")
+
     trustStoreOptions ++ keyStoreOptions ++ keyPass ++ certFilesPath
   }
 
-  private def generateTrustStore(sslType: String, cas: String, password: String): String = {
+  def generateTrustStore(sslType: String, cas: String, password: String): String = {
 
     val keystore = KeyStore.getInstance("JKS")
     keystore.load(null)
@@ -123,8 +124,8 @@ object SSLConfig extends Logging {
 
   def generatePemFile(pem: String, fileName: String): Unit = {
       formatPem(pem)
-      val bosCA = new BufferedOutputStream(new FileOutputStream(s"${ConfigSecurity.secretsFolder}" +
-        s"/$fileName"))
+      val bosCA = new BufferedOutputStream(
+        new FileOutputStream(s"${ConfigSecurity.secretsFolder}/$fileName"))
       bosCA.write(formatPem(pem).getBytes)
       bosCA.close()
     }
@@ -148,8 +149,8 @@ object SSLConfig extends Logging {
       val decrypted = pkcs8.getDecryptedBytes
       val spec = new PKCS8EncodedKeySpec(decrypted)
       val pk = KeyFactory.getInstance("RSA").generatePrivate(spec)
-      val bos = new BufferedOutputStream(new FileOutputStream(s"${ConfigSecurity.secretsFolder}" +
-        s"/key.pkcs8"))
+      val bos = new BufferedOutputStream(
+        new FileOutputStream(s"${ConfigSecurity.secretsFolder}/key.pkcs8"))
       bos.write(pk.getEncoded)
       bos.close()
     }

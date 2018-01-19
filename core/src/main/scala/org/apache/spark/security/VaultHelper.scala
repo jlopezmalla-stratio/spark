@@ -38,6 +38,58 @@ object VaultHelper extends Logging {
       None, Some(jsonAppRole))("client_token").asInstanceOf[String]
   }
 
+  def loadCas: Unit = {
+    val cassPass = getAllCasAndPassword
+
+    HTTPHelper.secureClient = Some(HTTPHelper.generateSecureClient(cassPass))
+  }
+
+  private def getAllCasAndPassword: Seq[(String, String)] = {
+    val cas = getAllCas
+    val casPAss = getCAsPass
+
+    cas.map(caVaultFolder => {
+      val passVaultPath = casPAss.find(pass => pass == caVaultFolder).getOrElse("default")
+      val ca = getCa(caVaultFolder)
+      val caPass = getCAPass(passVaultPath)
+      val caFilePath = SSLConfig.generateTrustStore("ca-trust", ca, caPass)
+      (caFilePath, caPass)
+    })
+
+  }
+
+  private def getCa(ca: String): String = {
+    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/$ca"
+    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    HTTPHelper.executeGet(requestUrl, "data",
+      Some(Seq(("X-Vault-Token",
+        ConfigSecurity.vaultToken.get))))(s"${ca}_crt").asInstanceOf[String]
+  }
+
+  private def getCAPass(ca: String): String = {
+    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/$ca/keystore"
+    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    HTTPHelper.executeGet(requestUrl, "data",
+      Some(Seq(("X-Vault-Token",
+        ConfigSecurity.vaultToken.get))))(s"pass").asInstanceOf[String]
+  }
+
+  private def getAllCas: Seq[String] = {
+    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/?list=true"
+    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    HTTPHelper.executeGet(requestUrl, "data",
+      Some(Seq(("X-Vault-Token",
+        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
+  }
+
+  private def getCAsPass: Seq[String] = {
+    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/?list=true"
+    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    HTTPHelper.executeGet(requestUrl, "data",
+      Some(Seq(("X-Vault-Token",
+        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
+  }
+
   def getRoleIdFromVault(role: String): String = {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/auth/approle/role/$role/role-id"
 
@@ -119,8 +171,7 @@ object VaultHelper extends Logging {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/sys/wrapping/unwrap"
     logDebug(s"Requesting real Token: $requestUrl")
     HTTPHelper.executePost(requestUrl,
-      "data", Some(Seq(("X-Vault-Token", vaultTempToken.get)))
-    )("token").asInstanceOf[String]
+      "data", Some(Seq(("X-Vault-Token", vaultTempToken.get))))("token").asInstanceOf[String]
   }
 
   def retrieveSecret(secretVaultPath: String, idJSonSecret: String): String = {
