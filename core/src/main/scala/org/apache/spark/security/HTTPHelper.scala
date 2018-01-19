@@ -84,7 +84,13 @@ object HTTPHelper extends Logging{
 
     entities.map(entity => uriRequest.asInstanceOf[HttpPost].setEntity(new StringEntity(entity)))
 
-    val client = secureClient.getOrElse(clientNaive)
+    val client = secureClient match {
+      case Some(secureClient) =>
+        logInfo(s"Using secure client")
+        secureClient
+      case _ => logInfo(s"Using non secure client")
+        clientNaive
+    }
 
     val response = client.execute(uriRequest)
 
