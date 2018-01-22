@@ -9,6 +9,7 @@
 * Secret folder path configurable
 * Changed log format according to Stratio standards
 * Mesos Role no longer obtain mesos pricipal and mesos secret from vault in Spark jobs
+* Vault connection certificates are obtained dynamically
 
 ## 2.2.0.4 (January 11, 2018)
 
