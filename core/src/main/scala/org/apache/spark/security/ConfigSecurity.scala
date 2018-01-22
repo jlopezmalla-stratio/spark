@@ -16,17 +16,12 @@
  */
 package org.apache.spark.security
 
-
 import scala.util.{Failure, Success, Try}
-
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
-
-
 object ConfigSecurity extends Logging {
-
 
   val secretsFolder: String = sys.env.get("SPARK_DRIVER_SECRET_FOLDER") match {
     case Some(folder) =>
@@ -79,7 +74,6 @@ object ConfigSecurity extends Logging {
   }
 
   def prepareEnvironment: Map[String, String] = {
-
     logDebug(s"env VAR: ${sys.env.mkString("\n")}")
     val secretOptionsMap = ConfigSecurity.extractSecretFromEnv(sys.env)
     logDebug(s"secretOptionsMap: ${secretOptionsMap.mkString("\n")}")
@@ -145,4 +139,5 @@ object ConfigSecurity extends Logging {
         MesosConfig.prepareEnvironment(options)
       case _ => Map.empty[String, String]
     }
+  }
 }
