@@ -262,14 +262,23 @@ class HistoryServer(
  * This launches the HistoryServer as a Spark daemon.
  */
 object HistoryServer extends Logging {
-  private val conf = new SparkConf
+  private val conf = {
+    val securityOps = ConfigSecurity.prepareEnvironment
+    val sparkConf = new SparkConf
+    if(securityOps.isEmpty) sparkConf
+    else {
+      sparkConf.set("spark.history.kerberos.enabled", "true")
+        .set("spark.history.kerberos.principal", securityOps("principal"))
+        .set("spark.history.kerberos.keytab", securityOps("keytabPath"))
+    }
+  }
 
   val UI_PATH_PREFIX = "/history"
 
   def main(argStrings: Array[String]): Unit = {
     try {
       Utils.initDaemon(log)
-      ConfigSecurity.prepareEnvironment
+
       new HistoryServerArguments(conf, argStrings)
       initSecurity()
       val securityManager = createSecurityManager(conf)

@@ -79,9 +79,7 @@ object ConfigSecurity extends Logging {
     logDebug(s"secretOptionsMap: ${secretOptionsMap.mkString("\n")}")
     loadingConf(secretOptionsMap)
     prepareEnvironment(secretOptionsMap)
-
   }
-
 
   def extractSecretFromEnv(env: Map[String, String]): Map[String,
     Map[String, String]] = {
