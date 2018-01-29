@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source /root/kms_utils-0.2.1.sh
-
 source commons.sh
 
 # Create krb5.conf file
