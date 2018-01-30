@@ -18,8 +18,6 @@ package org.apache.spark.security
 
 import org.apache.spark.internal.Logging
 
-import scala.util.Try
-
 object VaultHelper extends Logging {
 
 
