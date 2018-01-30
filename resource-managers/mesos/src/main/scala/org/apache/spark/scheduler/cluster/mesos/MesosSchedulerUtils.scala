@@ -82,13 +82,11 @@ trait MesosSchedulerUtils extends Logging {
     if(ConfigSecurity.vaultURI.isDefined && conf.getOption("spark.mesos.role").isDefined) {
 
       val(mSecret, mPrincipal) =
-        VaultHelper.getMesosPrincipalAndSecret(conf.getOption("spark.mesos.role").get)
+        (conf.get("spark.mesos.principal"), conf.get("spark.mesos.secret"))
 
-      conf.set("spark.mesos.principal", mPrincipal)
       fwInfoBuilder.setPrincipal(mPrincipal)
       credBuilder.setPrincipal(mPrincipal)
 
-      conf.set("spark.mesos.secret", mSecret)
       credBuilder.setSecret(mSecret)
 
     }

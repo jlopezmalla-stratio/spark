@@ -138,6 +138,8 @@ object ConfigSecurity extends Logging {
           SSLConfig.prepareEnvironment(SSLConfig.sslTypeDataStore, options)
       case ("db", options) =>
         DBConfig.prepareEnvironment(options)
+      case ("mesos", options) =>
+        MesosConfig.prepareEnvironment(options)
       case _ => Map.empty[String, String]
     }
 }

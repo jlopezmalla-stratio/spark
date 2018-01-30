@@ -78,11 +78,6 @@ object VaultHelper extends Logging {
     (keytab64, principal)
   }
 
-  // TODO refactor these two functions into one
-  def getMesosPrincipalAndSecret(instanceName: String): (String, String) = {
-    getPassPrincipalFromVault(s"/v1/userland/passwords/$instanceName/mesos")
-  }
-
   def getPassPrincipalFromVault(vaultPath: String): (String, String) = {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/$vaultPath"
     logDebug(s"Requesting user and pass: $requestUrl")
