@@ -29,6 +29,7 @@ function add_if_non_empty() {
 function configure_properties() {
 
 echo '' > /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
+}
 
 export APPLICATION_WEB_PROXY_BASE="${DISPATCHER_UI_WEB_PROXY_BASE}"
 set_log_level
