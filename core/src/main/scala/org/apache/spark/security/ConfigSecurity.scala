@@ -19,43 +19,71 @@ package org.apache.spark.security
 import scala.util.{Failure, Success, Try}
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.util.Utils
 
-object ConfigSecurity extends Logging{
 
-  var vaultToken: Option[String] = None
-  val vaultUri: Option[String] = getVaultUri(sys.env.get("VAULT_PROTOCOL"),
-    sys.env.get("VAULT_HOSTS"), sys.env.get("VAULT_PORT"))
-  
-    def getVaultUri(vaultProtocol: Option[String],
-                    vaultHost: Option[String],
-                    vaultPort: Option[String]): Option[String] = {
-      (vaultProtocol, vaultHost, vaultPort) match {
-        case (Some (vaultProtocol), Some (vaultHost), Some (vaultPort) ) =>
-          val vaultUri = s"$vaultProtocol://$vaultHost:$vaultPort"
-          logDebug (s"vault uri: $vaultUri found, any Vault Connection will use it")
-          Option (vaultUri)
-        case _ =>
-          logDebug ("No Vault information found, any Vault Connection will fail")
+
+object ConfigSecurity extends Logging {
+
+
+  val secretsFolder: String = sys.env.get("SPARK_DRIVER_SECRET_FOLDER") match {
+    case Some(folder) =>
+      logDebug(s"Creating secret folder using driver information in path $folder")
+      Utils.createDirectoryByName(folder).getAbsolutePath
+    case None =>
+      logDebug(s"Creating secret folder for executor")
+      Utils.createTempDir(
+       s"${sys.env.getOrElse("SPARK_SECRETS_FOLDER", "/tmp")}", "spark").getAbsolutePath
+  }
+
+  lazy val vaultToken: Option[String] =
+
+    if (sys.env.get("VAULT_TOKEN").isDefined) {
+      logInfo("Obtaining vault token using VAULT_TOKEN")
+      sys.env.get("VAULT_TOKEN")
+    } else if (sys.env.get("VAULT_TEMP_TOKEN").isDefined) {
+      logInfo("Obtaining vault token using VAULT_TEMP_TOKEN")
+      scala.util.Try {
+        VaultHelper.getRealToken(sys.env.get("VAULT_TEMP_TOKEN"))
+      } match {
+        case Success(token) => Option(token)
+        case Failure(e) =>
+          logWarning("An error ocurred while trying to obtain" +
+            " Application Token from a temporal token", e)
           None
       }
+    } else if (sys.env.get("VAULT_ROLE_ID").isDefined && sys.env.get("VAULT_SECRET_ID").isDefined) {
+     logInfo("Obtaining vault token using ROLE_ID and SECRET_ID")
+      Option(VaultHelper.getTokenFromAppRole(
+        sys.env("VAULT_ROLE_ID"),
+        sys.env("VAULT_SECRET_ID")))
+    } else {
+      logInfo("No Vault token variables provided. Skipping Vault token retrieving")
+      None
     }
 
-  def prepareEnvironment(vaultAppToken: Option[String] = None,
-                         vaulHost: Option[String] = None): Map[String, String] = {
+  lazy val vaultURI: Option[String] = {
+    if (sys.env.get("VAULT_PROTOCOL").isDefined
+        && sys.env.get("VAULT_HOSTS").isDefined
+        && sys.env.get("VAULT_PORT").isDefined) {
+      val vaultProtocol = sys.env.get("VAULT_PROTOCOL").get
+      val vaultHost = sys.env.get("VAULT_HOSTS").get
+      val vaultPort = sys.env.get("VAULT_PORT").get
+      Option(s"$vaultProtocol://$vaultHost:$vaultPort")
+    } else {
+      logInfo("No Vault variables provided")
+      None
+    }
+  }
+
+  def prepareEnvironment: Map[String, String] = {
 
     logDebug(s"env VAR: ${sys.env.mkString("\n")}")
     val secretOptionsMap = ConfigSecurity.extractSecretFromEnv(sys.env)
     logDebug(s"secretOptionsMap: ${secretOptionsMap.mkString("\n")}")
     loadingConf(secretOptionsMap)
-    vaultToken = if (vaultAppToken.isDefined) {
-      vaultAppToken
-    } else sys.env.get("VAULT_TOKEN")
-    if(vaultToken.isDefined) {
-      require(vaultUri.isDefined, "A proper vault host is required")
-      logDebug(s"env VAR: ${sys.env.mkString("\n")}")
-      prepareEnvironment(vaultUri.get, vaultToken.get, secretOptionsMap)
-    }
-    else Map()
+    prepareEnvironment(secretOptionsMap)
+
   }
 
 
@@ -101,16 +129,17 @@ object ConfigSecurity extends Logging{
     }
   }
 
-  private def prepareEnvironment(vaultHost: String,
-                                 vaultToken: String,
-                                 secretOptions: Map[String,
+  private def prepareEnvironment(secretOptions: Map[String,
                                    Map[String, String]]): Map[String, String] =
     secretOptions flatMap {
       case ("kerberos", options) =>
-        KerberosConfig.prepareEnviroment(vaultHost, vaultToken, options)
+        KerberosConfig.prepareEnviroment(options)
       case ("datastore", options) =>
-        SSLConfig.prepareEnvironment(vaultHost, vaultToken, SSLConfig.sslTypeDataStore, options)
+          SSLConfig.prepareEnvironment(SSLConfig.sslTypeDataStore, options)
+      case ("db", options) =>
+        DBConfig.prepareEnvironment(options)
+      case ("mesos", options) =>
+        MesosConfig.prepareEnvironment(options)
       case _ => Map.empty[String, String]
     }
-
 }

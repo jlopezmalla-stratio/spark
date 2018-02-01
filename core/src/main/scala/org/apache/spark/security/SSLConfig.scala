@@ -34,18 +34,15 @@ object SSLConfig extends Logging {
 
   val sslTypeDataStore = "DATASTORE"
 
-  def prepareEnvironment(vaultHost: String,
-                         vaultToken: String,
-                         sslType: String,
+  def prepareEnvironment(sslType: String,
                          options: Map[String, String]): Map[String, String] = {
 
     val sparkSSLPrefix = "spark.ssl."
 
     val vaultTrustStorePath = options.get(s"${sslType}_VAULT_TRUSTSTORE_PATH")
     val vaultTrustStorePassPath = options.get(s"${sslType}_VAULT_TRUSTSTORE_PASS_PATH")
-    val trustStore = VaultHelper.getTrustStore(vaultHost, vaultToken, vaultTrustStorePath.get)
-    val trustPass = VaultHelper.getCertPassForAppFromVault(
-      vaultHost, vaultTrustStorePassPath.get, vaultToken)
+    val trustStore = VaultHelper.getTrustStore(vaultTrustStorePath.get)
+    val trustPass = VaultHelper.getCertPassForAppFromVault(vaultTrustStorePassPath.get)
     val trustStorePath = generateTrustStore(sslType, trustStore, trustPass)
 
     logInfo(s"Setting SSL values for $sslType")
@@ -63,14 +60,13 @@ object SSLConfig extends Logging {
     val keyStoreOptions = if (vaultKeystorePath.isDefined && vaultKeystorePassPath.isDefined) {
 
       val (key, certs) =
-        VaultHelper.getCertKeyForAppFromVault(vaultHost, vaultKeystorePath.get, vaultToken)
+        VaultHelper.getCertKeyForAppFromVault(vaultKeystorePath.get)
       
       pemToDer(key)
       generatePemFile(certs, "cert.crt")
       generatePemFile(trustStore, "ca.crt")
 
-      val pass = VaultHelper.getCertPassForAppFromVault(
-        vaultHost, vaultKeystorePassPath.get, vaultToken)
+      val pass = VaultHelper.getCertPassForAppFromVault( vaultKeystorePassPath.get)
 
       val keyStorePath = generateKeyStore(sslType, certs, key, pass)
 
@@ -89,13 +85,15 @@ object SSLConfig extends Logging {
     val vaultKeyPassPath = options.get(s"${sslType}_VAULT_KEY_PASS_PATH")
 
     val keyPass = Map(s"$sparkSSLPrefix${sslType.toLowerCase}.keyPassword"
-      -> VaultHelper.getCertPassForAppFromVault(vaultHost, vaultKeyPassPath.get, vaultToken))
+      -> VaultHelper.getCertPassForAppFromVault(vaultKeyPassPath.get))
 
     val certFilesPath =
-      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.certPem.path" -> "/tmp/cert.crt",
-        s"$sparkSSLPrefix${sslType.toLowerCase}.keyPKCS8.path" -> "/tmp/key.pkcs8",
-        s"$sparkSSLPrefix${sslType.toLowerCase}.caPem.path" -> "/tmp/ca.crt")
-
+      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.certPem.path" ->
+        s"${ConfigSecurity.secretsFolder}/cert.crt",
+        s"$sparkSSLPrefix${sslType.toLowerCase}.keyPKCS8.path" ->
+          s"${ConfigSecurity.secretsFolder}/key.pkcs8",
+        s"$sparkSSLPrefix${sslType.toLowerCase}.caPem.path" ->
+          s"${ConfigSecurity.secretsFolder}/ca.crt")
     trustStoreOptions ++ keyStoreOptions ++ keyPass ++ certFilesPath
   }
 
@@ -111,7 +109,7 @@ object SSLConfig extends Logging {
     }
 
     val fileName = "trustStore.jks"
-    val dir = new File(s"/tmp/$sslType")
+    val dir = new File(s"${ConfigSecurity.secretsFolder}/$sslType")
     dir.mkdirs
     val downloadFile = Files.createFile(Paths.get(dir.getAbsolutePath, fileName),
       PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
@@ -125,7 +123,8 @@ object SSLConfig extends Logging {
 
   def generatePemFile(pem: String, fileName: String): Unit = {
       formatPem(pem)
-      val bosCA = new BufferedOutputStream(new FileOutputStream(s"/tmp/$fileName"))
+      val bosCA = new BufferedOutputStream(new FileOutputStream(s"${ConfigSecurity.secretsFolder}" +
+        s"/$fileName"))
       bosCA.write(formatPem(pem).getBytes)
       bosCA.close()
     }
@@ -149,7 +148,8 @@ object SSLConfig extends Logging {
       val decrypted = pkcs8.getDecryptedBytes
       val spec = new PKCS8EncodedKeySpec(decrypted)
       val pk = KeyFactory.getInstance("RSA").generatePrivate(spec)
-      val bos = new BufferedOutputStream(new FileOutputStream("/tmp/key.pkcs8"))
+      val bos = new BufferedOutputStream(new FileOutputStream(s"${ConfigSecurity.secretsFolder}" +
+        s"/key.pkcs8"))
       bos.write(pk.getEncoded)
       bos.close()
     }
@@ -204,7 +204,7 @@ object SSLConfig extends Logging {
     keystore.setKeyEntry(alias, key, password.toCharArray, arrayCert)
 
     val fileName = "keystore.jks"
-    val dir = new File(s"/tmp/$sslType")
+    val dir = new File(s"${ConfigSecurity.secretsFolder}/$sslType")
     dir.mkdirs
     val downloadFile = Files.createFile(Paths.get(dir.getAbsolutePath, fileName),
       PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))

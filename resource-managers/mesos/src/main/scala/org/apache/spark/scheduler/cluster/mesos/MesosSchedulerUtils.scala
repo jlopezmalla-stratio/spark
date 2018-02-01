@@ -23,17 +23,16 @@ import java.util.concurrent.CountDownLatch
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
-
 import com.google.common.base.Splitter
 import org.apache.mesos.{MesosSchedulerDriver, Protos, Scheduler, SchedulerDriver}
 import org.apache.mesos.Protos.{TaskState => MesosTaskState, _}
 import org.apache.mesos.Protos.FrameworkInfo.Capability
 import org.apache.mesos.protobuf.{ByteString, GeneratedMessage}
-
 import org.apache.spark.{SparkConf, SparkContext, SparkException}
 import org.apache.spark.TaskState
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
+import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.util.Utils
 
 
@@ -79,13 +78,20 @@ trait MesosSchedulerUtils extends Logging {
     }
     fwInfoBuilder.setHostname(Option(conf.getenv("SPARK_PUBLIC_DNS")).getOrElse(
       conf.get(DRIVER_HOST_ADDRESS)))
-    conf.getOption("spark.mesos.principal").foreach { principal =>
-      fwInfoBuilder.setPrincipal(principal)
-      credBuilder.setPrincipal(principal)
+
+    if(ConfigSecurity.vaultURI.isDefined &&
+      conf.getOption("spark.mesos.principal").isDefined &&
+      conf.getOption("spark.mesos.secret").isDefined) {
+
+      val(mPrincipal, mSecret) = (conf.get("spark.mesos.principal"), conf.get("spark.mesos.secret"))
+
+      fwInfoBuilder.setPrincipal(mPrincipal)
+      credBuilder.setPrincipal(mPrincipal)
+
+      credBuilder.setSecret(mSecret)
+
     }
-    conf.getOption("spark.mesos.secret").foreach { secret =>
-      credBuilder.setSecret(secret)
-    }
+
     if (credBuilder.hasSecret && !fwInfoBuilder.hasPrincipal) {
       throw new SparkException(
         "spark.mesos.principal must be configured when spark.mesos.secret is set")

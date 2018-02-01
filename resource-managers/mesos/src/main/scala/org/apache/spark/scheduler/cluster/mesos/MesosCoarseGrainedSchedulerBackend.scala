@@ -19,6 +19,7 @@ package org.apache.spark.scheduler.cluster.mesos
 
 import java.io.File
 import java.util.{Collections, List => JList}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import java.util.concurrent.locks.ReentrantLock
 
 import scala.collection.JavaConverters._
@@ -29,6 +30,7 @@ import org.apache.mesos.Protos.{TaskInfo => MesosTaskInfo, _}
 import org.apache.mesos.SchedulerDriver
 
 import org.apache.spark.{SecurityManager, SparkContext, SparkException, TaskState}
+import org.apache.spark.deploy.mesos.config._
 import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.shuffle.mesos.MesosExternalShuffleClient
 import org.apache.spark.rpc.RpcEndpointAddress
@@ -168,6 +170,15 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
 
   override def start() {
     super.start()
+
+    val startedBefore = IdHelper.startedBefore.getAndSet(true)
+
+    val suffix = if (startedBefore) {
+      f"-${IdHelper.nextSCNumber.incrementAndGet()}%04d"
+    } else {
+      ""
+    }
+
     val driver = createSchedulerDriver(
       master,
       MesosCoarseGrainedSchedulerBackend.this,
@@ -176,11 +187,10 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       sc.conf,
       sc.conf.getOption("spark.mesos.driver.webui.url").orElse(sc.ui.map(_.webUrl)),
       None,
-      None,
-      sc.conf.getOption("spark.mesos.driver.frameworkId")
+      Some(sc.conf.get(DRIVER_FAILOVER_TIMEOUT)),
+      sc.conf.getOption("spark.mesos.driver.frameworkId").map(_ + suffix)
     )
 
-    unsetFrameworkID(sc)
     startScheduler(driver)
   }
 
@@ -199,11 +209,16 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       Utils.libraryPathEnvPrefix(Seq(p))
     }.getOrElse("")
 
-    environment.addVariables(
-      Environment.Variable.newBuilder()
-        .setName("SPARK_EXECUTOR_OPTS")
-        .setValue(extraJavaOpts)
-        .build())
+    if (shuffleServiceEnabled) {
+      logDebug(s"Setting -Dspark.shuffle.service.host hostname to ${offer.getHostname}")
+
+      environment.addVariables(
+        Environment.Variable.newBuilder()
+          .setName("SPARK_EXECUTOR_OPTS")
+          .setValue(extraJavaOpts +
+            s"-Dspark.shuffle.service.host=${offer.getHostname}")
+          .build())
+    }
 
     sc.executorEnvs.foreach { case (key, value) =>
       environment.addVariables(Environment.Variable.newBuilder()
@@ -212,17 +227,30 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
         .build())
     }
 
-    if (ConfigSecurity.vaultToken.isDefined) {
+    if (ConfigSecurity.vaultToken.isDefined && ConfigSecurity.vaultURI.isDefined) {
       environment.addVariables(Environment.Variable.newBuilder()
         .setName("VAULT_TEMP_TOKEN")
-        .setValue(VaultHelper.getTemporalToken(ConfigSecurity.vaultUri.get,
-          ConfigSecurity.vaultToken.get))
+        .setValue(VaultHelper.getTemporalToken)
         .build())
       environment.addVariables(Environment.Variable.newBuilder()
-        .setName("VAULT_URI")
-        .setValue(ConfigSecurity.vaultUri.get)
+        .setName("VAULT_PROTOCOL")
+        .setValue(sys.env.get("VAULT_PROTOCOL").get)
+        .build())
+      environment.addVariables(Environment.Variable.newBuilder()
+        .setName("VAULT_HOSTS")
+        .setValue(sys.env.get("VAULT_HOSTS").get)
+        .build())
+      environment.addVariables(Environment.Variable.newBuilder()
+        .setName("VAULT_PORT")
+        .setValue(sys.env.get("VAULT_PORT").get)
+        .build())
+      environment.addVariables(Environment.Variable.newBuilder()
+        .setName("SPARK_DRIVER_SECRET_FOLDER")
+        .setValue(ConfigSecurity.secretsFolder)
         .build())
     }
+
+
 
     val command = CommandInfo.newBuilder()
       .setEnvironment(environment)
@@ -709,4 +737,10 @@ private class Slave(val hostname: String) {
   val taskIDs = new mutable.HashSet[String]()
   var taskFailures = 0
   var shuffleRegistered = false
+}
+
+object IdHelper {
+  // Use atomic values since Spark contexts can be initialized in parallel
+  private[mesos] val nextSCNumber = new AtomicLong(0)
+  private[mesos] val startedBefore = new AtomicBoolean(false)
 }

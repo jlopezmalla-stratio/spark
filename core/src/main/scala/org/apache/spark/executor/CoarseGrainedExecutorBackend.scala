@@ -286,10 +286,19 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       appId == null) {
       printUsageAndExit()
     }
-    ConfigSecurity.prepareEnvironment(scala.util.Try{
-      VaultHelper.getRealToken(sys.env("VAULT_URI"), sys.env("VAULT_TEMP_TOKEN"))}.toOption)
 
-    run(driverUrl, executorId, hostname, cores, appId, workerUrl, userClassPath)
+    try {
+      ConfigSecurity.prepareEnvironment
+      run(driverUrl, executorId, hostname, cores, appId, workerUrl, userClassPath)
+    } catch {
+
+      // Notify using the Stratio standard format
+      case e: Exception =>
+        logError("Error initializing Spark executor", e)
+        throw e
+
+    }
+
     System.exit(0)
   }
 

@@ -9,9 +9,22 @@ MESOS_NATIVE_JAVA_LIBRARY=/usr/lib/libmesos.so
 
 if [ "${SPARK_VIRTUAL_USER_NETWORK}" = "true" ]; then
    HOST="$(hostname --all-ip-addresses|xargs)"
-   echo "Virutal network detected changed LIBPROCESS_IP $LIBPROCESS_IP to $HOST"
+   echo "Virtual network detected changed LIBPROCESS_IP $LIBPROCESS_IP to $HOST"
    export LIBPROCESS_IP=$HOST
 fi
+
+
+function set_log_level() {
+    if [ ! -z "$SPARK_LOG_LEVEL" ]; then
+        sed "s,log4j.rootCategory=INFO,log4j.rootCategory=${SPARK_LOG_LEVEL}," \
+            /opt/spark/dist/conf/log4j.properties.template >/opt/spark/dist/conf/log4j.properties
+    else
+        cp /opt/spark/dist/conf/log4j.properties.template /opt/spark/dist/conf/log4j.properties
+    fi
+}
+
+# Separating stderr from stdout (already applied in the template) and applying SPARK_LOG_LEVEL if provided
+set_log_level
 
 # I first set this to MESOS_SANDBOX, as a Workaround for MESOS-5866
 # But this fails now due to MESOS-6391, so I'm setting it to /tmp

@@ -1,0 +1,113 @@
+{
+  "id": "/spark-fw",
+  "volumes": null,
+  "cmd": "/sbin/init.sh",
+  "args": null,
+  "user": "root",
+  "env": {
+    "DCOS_SERVICE_NAME": "spark-fw",
+    "VAULT_PORT": "8200",
+    "SPARK_VIRTUAL_USER_NETWORK": "stratio",
+    "SPARK_USER": "root",
+    "SECURED_MESOS": "true",
+    "VAULT_HOSTS": "vault.service.paas.labs.stratio.com",
+    "SPARK_LOG_LEVEL": "INFO",
+    "APPROLE": {
+      "secret": "role"
+    }
+  },
+  "instances": 1,
+  "cpus": 1,
+  "mem": 1024,
+  "disk": 0,
+  "gpus": 0,
+  "executor": null,
+  "constraints": null,
+  "fetch": null,
+  "storeUrls": null,
+  "backoffSeconds": 1,
+  "backoffFactor": 1.15,
+  "maxLaunchDelaySeconds": 3600,
+  "container": {
+    "docker": {
+      "image": "qa.stratio.com/stratio/stratio-spark:2.2.0.0-RC1",
+      "forcePullImage": true,
+      "privileged": false,
+      "parameters": [
+        {
+          "key": "user",
+          "value": "root"
+        }
+      ],
+      "portMappings": [
+        {
+          "containerPort": 7077,
+          "protocol": "tcp",
+          "name": "dispatcher",
+          "servicePort": 10119
+        },
+        {
+          "containerPort": 7076,
+          "protocol": "tcp",
+          "name": "dispatcherui",
+          "servicePort": 10120
+        }
+      ],
+      "network": "USER"
+    },
+    "type": "DOCKER",
+    "volumes": [
+      {
+        "containerPath": "/etc/ssl/certs/java/cacerts",
+        "hostPath": "/etc/pki/ca-trust/extracted/java/cacerts/",
+        "mode": "RO"
+      }
+    ]
+  },
+  "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/",
+      "gracePeriodSeconds": 10,
+      "intervalSeconds": 5,
+      "timeoutSeconds": 5,
+      "maxConsecutiveFailures": 5,
+      "portIndex": 1,
+      "ignoreHttp1xx": false
+    }
+  ],
+  "readinessChecks": null,
+  "dependencies": null,
+  "upgradeStrategy": {
+    "minimumHealthCapacity": 1,
+    "maximumOverCapacity": 1
+  },
+  "labels": {
+    "DCOS_PACKAGE_RELEASE": "23",
+    "DCOS_SERVICE_SCHEME": "http",
+    "DCOS_PACKAGE_SOURCE": "http://172.19.1.1:8080/repo",
+    "DCOS_PACKAGE_COMMAND": "eyJwaXAiOlsiaHR0cHM6Ly9kb3dubG9hZHMubWVzb3NwaGVyZS5jb20vc3BhcmsvYXNzZXRzLzEuMC42LTIuMC4yL2Rjb3Nfc3BhcmstMC41LjE5LXB5Mi5weTMtbm9uZS1hbnkud2hsIl19",
+    "DCOS_PACKAGE_METADATA": "eyJwYWNrYWdpbmdWZXJzaW9uIjoiMy4wIiwibmFtZSI6InN0cmF0aW8tc3BhcmstZGlzcGF0Y2hlciIsInZlcnNpb24iOiIyLjEuMC4zIiwibWFpbnRhaW5lciI6InNwYXJrQHN0cmF0aW8uY29tIiwiZGVzY3JpcHRpb24iOiJTcGFyayBpcyBhIGZhc3QgYW5kIGdlbmVyYWwgY2x1c3RlciBjb21wdXRpbmcgc3lzdGVtIGZvciBCaWcgRGF0YS1XaXRoIFN0cmF0aW8ncyBzZWN1cml0eSBzb2x1dGlvbi4gIERvY3VtZW50YXRpb246IGh0dHBzOi8vZG9jcy5tZXNvc3BoZXJlLmNvbS9jdXJyZW50L3VzYWdlL3NlcnZpY2UtZ3VpZGVzL3NwYXJrLyIsInRhZ3MiOlsiYmlnZGF0YSIsIm1hcHJlZHVjZSIsImJhdGNoIiwiYW5hbHl0aWNzIl0sInNlbGVjdGVkIjp0cnVlLCJzY20iOiJodHRwczovL2dpdGh1Yi5jb20vYXBhY2hlL3NwYXJrLmdpdCIsIndlYnNpdGUiOiJodHRwczovL3N0cmF0aW8uYXRsYXNzaWFuLm5ldC93aWtpL3NwYWNlcy9TVFJBVElPU1BBUksiLCJmcmFtZXdvcmsiOmZhbHNlLCJwb3N0SW5zdGFsbE5vdGVzIjoiREMvT1MgU3BhcmsgaXMgYmVpbmcgaW5zdGFsbGVkIVxuXG5cdERvY3VtZW50YXRpb246IGh0dHBzOi8vc3RyYXRpby5hdGxhc3NpYW4ubmV0L3dpa2kvc3BhY2VzL1NUUkFUSU9TUEFSS1xuXHRJc3N1ZXM6IGh0dHBzOi8vc3RyYXRpby5hdGxhc3NpYW4ubmV0L3Byb2plY3RzL1NQSyIsInBvc3RVbmluc3RhbGxOb3RlcyI6IlRoZSBBcGFjaGUgU3BhcmsgREMvT1MgU2VydmljZSBoYXMgYmVlbiB1bmluc3RhbGxlZCBhbmQgd2lsbCBubyBsb25nZXIgcnVuLlxuUGxlYXNlIGZvbGxvdyB0aGUgaW5zdHJ1Y3Rpb25zIGF0IGh0dHBzOi8vc3RyYXRpby5hdGxhc3NpYW4ubmV0L3dpa2kvc3BhY2VzL1NUUkFUSU9TUEFSSyB0byBjbGVhbiB1cCBhbnkgcGVyc2lzdGVkIHN0YXRlLiIsImxpY2Vuc2VzIjpbeyJuYW1lIjoiQXBhY2hlIExpY2Vuc2UgVmVyc2lvbiAyLjAiLCJ1cmwiOiJodHRwczovL3Jhdy5naXRodWJ1c2VyY29udGVudC5jb20vYXBhY2hlL3NwYXJrL21hc3Rlci9MSUNFTlNFIn1dLCJpbWFnZXMiOnsiaWNvbi1zbWFsbCI6Imh0dHA6Ly9hc3NldHMuc3RyYXRpby5jb20vbG9nb3MvbG9nb19zdHJhdGlvX3VuaXZlcnNlLnBuZyIsImljb24tbWVkaXVtIjoiaHR0cDovL2Fzc2V0cy5zdHJhdGlvLmNvbS9sb2dvcy9sb2dvX3N0cmF0aW9fdW5pdmVyc2UucG5nIiwiaWNvbi1sYXJnZSI6Imh0dHA6Ly9hc3NldHMuc3RyYXRpby5jb20vbG9nb3MvbG9nb19zdHJhdGlvX3VuaXZlcnNlLnBuZyJ9fQ==",
+    "DCOS_PACKAGE_REGISTRY_VERSION": "3.0",
+    "DCOS_SERVICE_NAME": "spark-fw",
+    "DCOS_PACKAGE_FRAMEWORK_NAME": "spark-fw",
+    "DCOS_SERVICE_PORT_INDEX": "0",
+    "DCOS_PACKAGE_VERSION": "2.2.0.0",
+    "SPARK_URI": "",
+    "DCOS_PACKAGE_NAME": "stratio-spark-dispatcher",
+    "DCOS_PACKAGE_IS_FRAMEWORK": "false"
+  },
+  "acceptedResourceRoles": [
+    "*"
+  ],
+  "ipAddress": {
+    "networkName": "stratio"
+  },
+  "residency": null,
+  "secrets": {
+    "role": {
+      "source": "open"
+    }
+  },
+  "taskKillGracePeriodSeconds": null
+}

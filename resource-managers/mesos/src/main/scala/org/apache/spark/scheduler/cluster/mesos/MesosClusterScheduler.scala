@@ -28,10 +28,10 @@ import org.apache.mesos.Protos.{TaskState => MesosTaskState, _}
 import org.apache.mesos.Protos.Environment.Variable
 import org.apache.mesos.Protos.TaskStatus.Reason
 import org.apache.spark.{SecurityManager, SparkConf, SparkException, TaskState}
-import org.apache.spark.deploy.mesos.MesosDriverDescription
+import org.apache.spark.deploy.mesos.{MesosDriverDescription, config}
 import org.apache.spark.deploy.rest.{CreateSubmissionResponse, KillSubmissionResponse, SubmissionStatusResponse}
 import org.apache.spark.metrics.MetricsSystem
-import org.apache.spark.security.VaultHelper
+import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.util.Utils
 
 /**
@@ -366,7 +366,8 @@ private[spark] class MesosClusterScheduler(
   }
 
   private def getDriverFrameworkID(desc: MesosDriverDescription): String = {
-    s"${frameworkId}-${desc.submissionId}"
+    val retries = desc.retryState.map { d => s"-retry-${d.retries.toString}" }.getOrElse("")
+    s"${frameworkId}-${desc.submissionId}${retries}"
   }
 
   private def adjust[A, B](m: collection.Map[A, B], k: A, default: B)(f: B => B) = {
@@ -483,7 +484,8 @@ private[spark] class MesosClusterScheduler(
     val replicatedOptionsBlacklist = Set(
       "spark.jars", // Avoids duplicate classes in classpath
       "spark.submit.deployMode", // this would be set to `cluster`, but we need client
-      "spark.master" // this contains the address of the dispatcher, not master
+      "spark.master", // this contains the address of the dispatcher, not master
+      "spark.shuffle.service.host" // Prevent to propagate any shuffle service host
     )
     val defaultConf = conf.getAllWithPrefix("spark.mesos.dispatcher.driverDefault.").toMap
     val driverConf = desc.conf.getAll
@@ -515,7 +517,8 @@ private[spark] class MesosClusterScheduler(
 
   private class ResourceOffer(
       val offer: Offer,
-      var remainingResources: JList[Resource]) {
+      var remainingResources: JList[Resource],
+      var attributes: JList[Attribute]) {
     override def toString(): String = {
       s"Offer id: ${offer.getId}, resources: ${remainingResources}"
     }
@@ -555,10 +558,15 @@ private[spark] class MesosClusterScheduler(
     for (submission <- candidates) {
       val driverCpu = submission.cores
       val driverMem = submission.mem
+      val driverConstraints =
+        parseConstraintString(submission.conf.get(config.DRIVER_CONSTRAINTS))
+      logTrace(s"Finding offer to launch driver with cpu: $driverCpu, mem: $driverMem, " +
+        s"driverConstraints: $driverConstraints")
       logTrace(s"Finding offer to launch driver with cpu: $driverCpu, mem: $driverMem")
       val offerOption = currentOffers.find { offer =>
         getResource(offer.remainingResources, "cpus") >= driverCpu &&
-        getResource(offer.remainingResources, "mem") >= driverMem
+        getResource(offer.remainingResources, "mem") >= driverMem &&
+          matchesAttributeRequirements(driverConstraints, toAttributeMap(offer.attributes))
       }
       if (offerOption.isEmpty) {
         logDebug(s"Unable to find offer to launch driver id: ${submission.submissionId}, " +
@@ -601,7 +609,7 @@ private[spark] class MesosClusterScheduler(
     val currentTime = new Date()
 
     val currentOffers = offers.asScala.map {
-      offer => new ResourceOffer(offer, offer.getResourcesList)
+      offer => new ResourceOffer(offer, offer.getResourcesList, offer.getAttributesList)
     }.toList
 
     stateLock.synchronized {
@@ -700,17 +708,12 @@ private[spark] class MesosClusterScheduler(
           val nextRetry = new Date(new Date().getTime + waitTimeSec * 1000L)
 
           var sparkProperties = state.driverDescription.conf.getAll.toMap
-          if (sparkProperties.get("spark.secret.vault.protocol").isDefined
-            && sparkProperties.get("spark.secret.vault.hosts").isDefined
-            && sparkProperties.get("spark.secret.vault.port").isDefined)
+          if (ConfigSecurity.vaultURI.isDefined)
           {
-            val vaultUrl = s"${sparkProperties("spark.secret.vault.protocol")}://" +
-                s"${sparkProperties("spark.secret.vault.hosts").split(",")
-                  .map(host => s"$host:${sparkProperties("spark.secret.vault.port")}")
-                  .mkString(",")}"
+            val vaultURI = ConfigSecurity.vaultURI.get
             val role = sparkProperties("spark.secret.vault.role")
-            val driverSecretId = VaultHelper.getSecretIdFromVault(vaultUrl, role)
-            val driverRoleId = VaultHelper.getRoleIdFromVault(vaultUrl, role)
+            val driverSecretId = VaultHelper.getSecretIdFromVault(role)
+            val driverRoleId = VaultHelper.getRoleIdFromVault(role)
             sparkProperties = sparkProperties.updated("spark.secret.roleID", driverRoleId)
               .updated("spark.secret.secretID", driverSecretId)
           }

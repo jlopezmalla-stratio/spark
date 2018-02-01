@@ -40,6 +40,18 @@ private[spark] trait BroadcastFactory {
    */
   def newBroadcast[T: ClassTag](value: T, isLocal: Boolean, id: Long): Broadcast[T]
 
+  /**
+    * Creates a new broadcast variable.
+    *
+    * @param secretRepositoryValue secret repository access variable to broadcast
+    * @param isLocal whether we are in local mode (single JVM process)
+    * @param id unique id representing this broadcast variable
+    */
+  def newSecretBroadcast(secretVaultPath: String,
+                         idJson: String,
+                         isLocal: Boolean,
+                         id: Long): Broadcast[String]
+
   def unbroadcast(id: Long, removeFromDriver: Boolean, blocking: Boolean): Unit
 
   def stop(): Unit

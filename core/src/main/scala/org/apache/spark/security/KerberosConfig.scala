@@ -24,13 +24,11 @@ import org.apache.spark.internal.Logging
 
 object KerberosConfig extends Logging{
 
-  def prepareEnviroment(vaultUrl: String,
-                        vaultToken: String,
-                        options: Map[String, String]): Map[String, String] = {
+  def prepareEnviroment(options: Map[String, String]): Map[String, String] = {
     val kerberosVaultPath = options.get("KERBEROS_VAULT_PATH")
     if(kerberosVaultPath.isDefined) {
       val (keytab64, principal) =
-        VaultHelper.getKeytabPrincipalFromVault(vaultUrl, vaultToken, kerberosVaultPath.get)
+        VaultHelper.getKeytabPrincipalFromVault(kerberosVaultPath.get)
       val keytabPath = getKeytabPrincipal(keytab64, principal)
       Map("principal" -> principal, "keytabPath" -> keytabPath)
     } else {
@@ -42,7 +40,8 @@ object KerberosConfig extends Logging{
 
   private def getKeytabPrincipal(keytab64: String, principal: String): String = {
     val bytes = DatatypeConverter.parseBase64Binary(keytab64)
-    val kerberosSecretFile = Files.createFile(Paths.get(s"/tmp/$principal.keytab"),
+    val kerberosSecretFile = Files.createFile(Paths.get(
+      s"${ConfigSecurity.secretsFolder}/$principal.keytab"),
       PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
     kerberosSecretFile.toFile.deleteOnExit() // just to be sure
     val writePath = Files.write(kerberosSecretFile, bytes)

@@ -1,6 +1,6 @@
 #!/bin/bash
+
 set -e
-set -x
 
 export DISPATCHER_PORT=7077
 export DISPATCHER_UI_PORT=7076
@@ -15,5 +15,6 @@ fi
 
 export DISPATCHER_UI_WEB_PROXY_BASE="/service/${DCOS_SERVICE_NAME}"
 
-# start service
-exec runsvdir -P /etc/service
+
+#Start spark
+/etc/service/spark/run

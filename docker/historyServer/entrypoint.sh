@@ -26,25 +26,25 @@ RULE:[2:\$1@\$0](.*@${KERBEROS_REALM})s/@${KERBEROS_REALM}//
 DEFAULT
 EOM
 
+function set_log_level() {
+    if [ ! -z "$SPARK_LOG_LEVEL" ]; then
+        sed "s,log4j.rootCategory=INFO,log4j.rootCategory=${SPARK_LOG_LEVEL}," \
+            /opt/sds/spark/conf/log4j.properties.template > /opt/sds/spark/conf/log4j.properties
+    else
+        cp /opt/sds/spark/conf/log4j.properties.template /opt/sds/spark/conf/log4j.properties
+    fi
+}
+
 function main() {
    HDFS_HADOOP_SECURITY_AUTH_TO_LOCAL=${HDFS_HADOOP_SECURITY_AUTH_TO_LOCAL:=${auth_to_local_value}}
    VAULT_PORT=${VAULT_PORT:=8200}
-   VAULT_HOSTS=$VAULT_HOST
    VAULT_URI="$VAULT_PROTOCOL://$VAULT_HOSTS:$VAULT_PORT"
 
    SPARK_HOME=/opt/sds/spark
 
    mkdir -p $HADOOP_CONF_DIR
 
-   if [[ "$SECURED_MESOS" == "true" ]]
-   then
-     #Get Mesos secrets from Vault
-     getPass "userland" "history-server" "mesos"
-     # This should populate HISTORY_SERVER_MESOS_USER and HISTORY_SERVER_MESOS_PASS
-     SPARK_HISTORY_OPTS="-Dspark.mesos.principal=${HISTORY_SERVER_MESOS_USER} -Dspark.mesos.secret=${HISTORY_SERVER_MESOS_PASS} -Dspark.mesos.role=${HISTORY_MESOS_ROLE} ${SPARK_HISTORY_OPTS}"
-   else
-	echo 'MESOS SECURITY IS NOT ENABLE'
-   fi
+   set_log_level
 
    if [[ "$HDFS_KRB_ENABLE" == "true" ]]
    then

@@ -1,0 +1,115 @@
+{
+  "volumes": null,
+  "id": "/history-server",
+  "cmd": null,
+  "args": null,
+  "user": null,
+  "env": {
+    "VAULT_HOST": "vault.service.paas.labs.stratio.com",
+    "KERBEROS_KADMIN_HOST": "idp.integration.labs.stratio.com:749",
+    "HDFS_HADOOP_TMP_DIR": "/tmp",
+    "HDFS_DFS_HTTP_POLICY": "HTTPS_ONLY",
+    "APPLICATION_WEB_PROXY_BASE": "/service/history-server",
+    "INSTANCE": "intelligence",
+    "KERBEROS_REALM": "DEMO.STRATIO.COM",
+    "HDFS_HADOOP_SECURITY_AUTHORIZATION": "true",
+    "SPARK_HISTORY_OPTS": "-Dspark.history.fs.cleaner.enabled=false -Dspark.history.fs.cleaner.interval=1d -Dspark.history.fs.cleaner.maxAge=7d",
+    "HDFS_KRB_ENABLE": "true",
+    "VAULT_PROTOCOL": "https",
+    "VAULT_PORT": "8200",
+    "HADOOP_CONF_DIR": "/etc/sds/hadoop",
+    "HISTORY_SERVER_LOG_DIR": "/tmp/logs/history",
+    "SECURED_MESOS": "true",
+    "HDFS_HADOOP_SECURITY_AUTHENTICATION": "kerberos",
+    "HDFS_DFS_BLOCK_ACCESS_TOKEN_ENABLE": "true",
+    "HISTORY_SERVER_FQDN": "intelligence",
+    "HDFS_FS_DEFAULTFS": "10.200.0.74:8020",
+    "KERBEROS_KDC_HOST": "idp.integration.labs.stratio.com:88",
+    "HDFS_DFS_PERMISSIONS_ENABLED": "false",
+    "APPROLE": {
+      "secret": "role"
+    }
+  },
+  "instances": 1,
+  "cpus": 1,
+  "mem": 1024,
+  "disk": 0,
+  "gpus": 0,
+  "executor": null,
+  "constraints": null,
+  "fetch": null,
+  "storeUrls": null,
+  "backoffSeconds": 1,
+  "backoffFactor": 1.15,
+  "maxLaunchDelaySeconds": 3600,
+  "container": {
+    "docker": {
+      "image": "qa.stratio.com/stratio/spark-stratio-history-server:2.2.0.0",
+      "forcePullImage": true,
+      "privileged": false,
+      "parameters": [
+        {
+          "key": "user",
+          "value": "root"
+        }
+      ],
+      "portMappings": [
+        {
+          "containerPort": 18080,
+          "protocol": "tcp",
+          "name": "history-uir",
+          "servicePort": 10123
+        }
+      ],
+      "network": "USER"
+    },
+    "type": "DOCKER",
+    "volumes": [
+      {
+        "containerPath": "/etc/ssl/certs/java/cacerts",
+        "hostPath": "/usr/lib/jvm/jre1.8.0_112/lib/security/cacerts",
+        "mode": "RO"
+      }
+    ]
+  },
+  "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/",
+      "gracePeriodSeconds": 5,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 10,
+      "maxConsecutiveFailures": 3,
+      "ignoreHttp1xx": false
+    }
+  ],
+  "readinessChecks": null,
+  "dependencies": null,
+  "upgradeStrategy": {
+    "minimumHealthCapacity": 1,
+    "maximumOverCapacity": 1
+  },
+  "labels": {
+    "DCOS_PACKAGE_RELEASE": "0",
+    "DCOS_SERVICE_SCHEME": "http",
+    "DCOS_PACKAGE_SOURCE": "http://172.19.1.1:8080/repo",
+    "DCOS_PACKAGE_METADATA": "eyJwYWNrYWdpbmdWZXJzaW9uIjoiMy4wIiwibmFtZSI6InNwYXJrLWhpc3Rvcnktc2VydmVyIiwidmVyc2lvbiI6IjIuMS4wLjQiLCJtYWludGFpbmVyIjoic3VwcG9ydEBzdHJhdGlvLmNvbSIsImRlc2NyaXB0aW9uIjoiVGhlIEFwYWNoZSBTcGFyayBIaXN0b3J5IFNlcnZlciBhbGxvd3MgeW91IHRvIHZpZXcgdGhlIHN0YXRlIG9mIHJ1bm5pbmcgYW5kIGNvbXBsZXRlZCBTcGFyayBqb2JzLiIsInRhZ3MiOlsiYmlnZGF0YSJdLCJzZWxlY3RlZCI6dHJ1ZSwic2NtIjoiaHR0cHM6Ly9naXRodWIuY29tL1N0cmF0aW8vc3BhcmsuZ2l0Iiwid2Vic2l0ZSI6Imh0dHBzOi8vZG9jcy5tZXNvc3BoZXJlLmNvbS9zZXJ2aWNlLWRvY3Mvc3BhcmsvIiwiZnJhbWV3b3JrIjpmYWxzZSwicG9zdEluc3RhbGxOb3RlcyI6IlRoZSBBcGFjaGUgU3BhcmsgSGlzdG9yeSBTZXJ2ZXIgaXMgYmVpbmcgaW5zdGFsbGVkISIsInBvc3RVbmluc3RhbGxOb3RlcyI6IlRoZSBBcGFjaGUgU3BhcmsgSGlzdG9yeSBTZXJ2ZXIgaGFzIGJlZW4gdW5pbnN0YWxsZWQgYW5kIHdpbGwgbm8gbG9uZ2VyIHJ1bi4iLCJsaWNlbnNlcyI6W3sibmFtZSI6IkFwYWNoZSBMaWNlbnNlIFZlcnNpb24gMi4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2FwYWNoZS9zcGFyay9tYXN0ZXIvTElDRU5TRSJ9XSwiaW1hZ2VzIjp7Imljb24tc21hbGwiOiJodHRwOi8vYXNzZXRzLnN0cmF0aW8uY29tL2xvZ29zL2xvZ29fc3RyYXRpb191bml2ZXJzZS5wbmciLCJpY29uLW1lZGl1bSI6Imh0dHA6Ly9hc3NldHMuc3RyYXRpby5jb20vbG9nb3MvbG9nb19zdHJhdGlvX3VuaXZlcnNlLnBuZyIsImljb24tbGFyZ2UiOiJodHRwOi8vYXNzZXRzLnN0cmF0aW8uY29tL2xvZ29zL2xvZ29fc3RyYXRpb191bml2ZXJzZS5wbmcifX0=",
+    "DCOS_PACKAGE_REGISTRY_VERSION": "3.0",
+    "DCOS_SERVICE_NAME": "history-server",
+    "DCOS_SERVICE_PORT_INDEX": "0",
+    "DCOS_PACKAGE_VERSION": "2.2.0.0",
+    "DCOS_PACKAGE_NAME": "spark-history-server",
+    "DCOS_PACKAGE_IS_FRAMEWORK": "false"
+  },
+  "acceptedResourceRoles": null,
+  "ipAddress": {
+    "networkName": "stratio"
+  },
+  "residency": null,
+  "secrets": {
+    "role": {
+      "source": "open"
+    }
+  },
+  "taskKillGracePeriodSeconds": null
+}

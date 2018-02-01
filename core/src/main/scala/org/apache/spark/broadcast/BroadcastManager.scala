@@ -55,6 +55,12 @@ private[spark] class BroadcastManager(
   def newBroadcast[T: ClassTag](value_ : T, isLocal: Boolean): Broadcast[T] = {
     broadcastFactory.newBroadcast[T](value_, isLocal, nextBroadcastId.getAndIncrement())
   }
+  def newSecretBroadcast(secretVaultPath: String,
+                         idJson: String,
+                         isLocal: Boolean): Broadcast[String] = {
+    broadcastFactory.newSecretBroadcast(secretVaultPath, idJson,
+      isLocal, nextBroadcastId.getAndIncrement())
+  }
 
   def unbroadcast(id: Long, removeFromDriver: Boolean, blocking: Boolean) {
     broadcastFactory.unbroadcast(id, removeFromDriver, blocking)

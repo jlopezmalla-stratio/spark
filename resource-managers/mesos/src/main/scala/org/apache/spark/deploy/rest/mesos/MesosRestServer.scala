@@ -28,7 +28,7 @@ import org.apache.spark.deploy.Command
 import org.apache.spark.deploy.mesos.MesosDriverDescription
 import org.apache.spark.deploy.rest._
 import org.apache.spark.scheduler.cluster.mesos.MesosClusterScheduler
-import org.apache.spark.security.VaultHelper
+import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.util.Utils
 
 /**
@@ -45,21 +45,6 @@ private[spark] class MesosRestServer(
     scheduler: MesosClusterScheduler)
   extends RestSubmissionServer(host, requestedPort, masterConf) {
 
-  protected lazy val token = {
-    require((masterConf.getOption("spark.secret.vault.protocol").isDefined
-      && masterConf.getOption("spark.secret.vault.hosts").isDefined
-      && masterConf.getOption("spark.secret.vault.port").isDefined),
-      "You are attempting to login in Vault but no Vault obtained," +
-        " please configure spark.secret.vault.protocol," +
-        " spark.vault.hosts and spark.secret.vault.port" +
-        " in your Stratio Spark Dispatcher instance")
-    val vaultUrl = s"${masterConf.get("spark.secret.vault.protocol")}://" +
-      s"${masterConf.get("spark.secret.vault.hosts").split(",")
-        .map(host => s"$host:${masterConf.get("spark.secret.vault.port")}").mkString(",")}"
-    VaultHelper.getTokenFromAppRole(vaultUrl,
-      sys.env("VAULT_ROLE_ID"),
-      sys.env("VAULT_SECRET_ID"))
-  }
 
   protected override val submitRequestServlet =
     new MesosSubmitRequestServlet(scheduler, masterConf)
@@ -94,10 +79,17 @@ private[mesos] class MesosSubmitRequestServlet(
   private def buildDriverDescription(request: CreateSubmissionRequest): MesosDriverDescription = {
     // Required fields, including the main class because python is not yet supported
     val appResource = Option(request.appResource).getOrElse {
-      throw new SubmitRestMissingFieldException("Application jar is missing.")
+      throw new SubmitRestMissingFieldException("Application jar 'appResource' is missing.")
     }
     val mainClass = Option(request.mainClass).getOrElse {
-      throw new SubmitRestMissingFieldException("Main class is missing.")
+      throw new SubmitRestMissingFieldException("Main class 'mainClass' is missing.")
+    }
+    val appArgs = Option(request.appArgs).getOrElse {
+      throw new SubmitRestMissingFieldException("Application arguments 'appArgs' are missing.")
+    }
+    val environmentVariables = Option(request.environmentVariables).getOrElse {
+      throw new SubmitRestMissingFieldException("Environment variables 'environmentVariables' " +
+        "are missing.")
     }
 
     // Optional fields
@@ -108,8 +100,6 @@ private[mesos] class MesosSubmitRequestServlet(
     val superviseDriver = sparkProperties.get("spark.driver.supervise")
     val driverMemory = sparkProperties.get("spark.driver.memory")
     val driverCores = sparkProperties.get("spark.driver.cores")
-    val appArgs = request.appArgs
-    val environmentVariables = request.environmentVariables
     val name = request.sparkProperties.getOrElse("spark.app.name", mainClass)
 
     // Construct driver description
@@ -120,12 +110,8 @@ private[mesos] class MesosSubmitRequestServlet(
     val sparkJavaOpts = Utils.sparkJavaOpts(conf)
     val javaOpts = sparkJavaOpts ++ extraJavaOpts
     val securitySparkOpts: Map[String, String] = {
-        if (sparkProperties.get("spark.secret.vault.hosts").isDefined
-          && sparkProperties.get("spark.secret.vault.protocol").isDefined
-          && sparkProperties.get("spark.secret.vault.port").isDefined) {
-            val vaultUrl = s"${sparkProperties("spark.secret.vault.protocol")}://" +
-                s"${sparkProperties("spark.secret.vault.hosts").split(",")
-                    .map(host => s"$host:${sparkProperties("spark.secret.vault.port")}").mkString(",")}"
+        if (ConfigSecurity.vaultURI.isDefined) {
+            val vaultURL = ConfigSecurity.vaultURI.get
             (sparkProperties.get("spark.secret.vault.role"),
                 sys.env.get("VAULT_ROLE"),
                 sparkProperties.get("spark.secret.vault.token"),
@@ -133,14 +119,14 @@ private[mesos] class MesosSubmitRequestServlet(
               case (roleProp, roleEnv, None, None) if (roleEnv.isDefined || roleProp.isDefined) =>
                 val role = roleProp.getOrElse(roleEnv.get)
                 logTrace(s"obtaining vault secretID and role ID using role: $role")
-                val driverSecretId = VaultHelper.getSecretIdFromVault(vaultUrl, role)
-                val driverRoleId = VaultHelper.getRoleIdFromVault(vaultUrl, role)
+                val driverSecretId = VaultHelper.getSecretIdFromVault(role)
+                val driverRoleId = VaultHelper.getRoleIdFromVault(role)
                 Map("spark.mesos.driverEnv.VAULT_ROLE_ID" -> driverRoleId,
                   "spark.mesos.driverEnv.VAULT_SECRET_ID" -> driverSecretId)
               case (None, None, tokenProp, tokenVal) if (tokenProp.isDefined
                 || tokenVal.isDefined) =>
                   val vaultToken = tokenProp.getOrElse(tokenVal.get)
-                  val temporalToken = VaultHelper.getTemporalToken(vaultUrl, vaultToken)
+                  val temporalToken = VaultHelper.getTemporalToken
                   logDebug(s"Obtained token from One time token; $temporalToken")
                   Map("spark.secret.vault.tempToken" -> temporalToken) ++ request.sparkProperties
                     .filter(_._1 != "spark.secret.vault.token")

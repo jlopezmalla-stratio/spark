@@ -33,28 +33,28 @@ class SSLConfigTest extends SparkFunSuite with ShouldMatchers{
     SSLConfig.pemToDer(Source.fromURL(getClass.getResource("/cert.key")).mkString)
     assert (
       calculateMD5(getClass.getResource("/key.pkcs8").getFile)
-        .equals(calculateMD5("/tmp/key.pkcs8")))
+        .equals(calculateMD5(s"${ConfigSecurity.secretsFolder}/key.pkcs8")))
   }
 
   test("generate cert.crt from valid data") {
-    SSLConfig.generatePemFile( pemString, "/cert.crt")
+    SSLConfig.generatePemFile(pemString, "/cert.crt")
     assert (
       calculateMD5(getClass.getResource("/cert.crt").getFile)
-        .equals(calculateMD5("/tmp/cert.crt")))
+        .equals(calculateMD5(s"${ConfigSecurity.secretsFolder}/cert.crt")))
   }
 
   test("generate ca-two-levels.crt from intermediate chain valid data") {
-    SSLConfig.generatePemFile( caString, "/ca-two-levels.crt")
+    SSLConfig.generatePemFile(caString, "/ca-two-levels.crt")
     assert (
       calculateMD5(getClass.getResource("/ca-two-levels.crt").getFile)
-        .equals(calculateMD5("/tmp/ca-two-levels.crt")))
+        .equals(calculateMD5(s"${ConfigSecurity.secretsFolder}/ca-two-levels.crt")))
   }
 
   test("generate ca-two-levels.crt from valid root ca") {
-    SSLConfig.generatePemFile( caRootString, "/ca-one-level.crt")
+    SSLConfig.generatePemFile(caRootString, "/ca-one-level.crt")
     assert (
       calculateMD5(getClass.getResource("/ca-one-level.crt").getFile)
-        .equals(calculateMD5("/tmp/ca-one-level.crt")))
+        .equals(calculateMD5(s"${ConfigSecurity.secretsFolder}/ca-one-level.crt")))
   }
 
 }
