@@ -29,29 +29,6 @@ function add_if_non_empty() {
 function configure_properties() {
 
 echo '' > /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
-if [ "$SECURED_MESOS" == "true" ]; then
-    if [ ! -z "$TENANT_NAME" ]; then
-     #Login to get access token for Vault
-     login
-     #Get Mesos secrets from Vault
-     getPass "userland" "$TENANT_NAME" "mesos"
-     declare DCOS_SERVICE_NAME_NOHYPHEN=${TENANT_NAME//-/_}
-     declare MESOS_PRINCIPAL="${DCOS_SERVICE_NAME_NOHYPHEN^^}_MESOS_USER"
-     MESOS_PRINCIPAL=${!MESOS_PRINCIPAL}
-     declare MESOS_SECRET="${DCOS_SERVICE_NAME_NOHYPHEN^^}_MESOS_PASS"
-     MESOS_SECRET=${!MESOS_SECRET}
-
-      echo "spark.mesos.principal=${MESOS_PRINCIPAL}" >> /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
-      echo "spark.mesos.secret=${MESOS_SECRET}" >> /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
-      echo "spark.mesos.role=${TENANT_NAME}" >> /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
-    else
-        echo 'Please set the TENANT_NAME variable to download the secrets from Vault (Mesos security enabled)'
-        exit -1
-    fi
-else
-	echo 'MESOS SECURITY IS NOT ENABLE'
-fi
-}
 
 export APPLICATION_WEB_PROXY_BASE="${DISPATCHER_UI_WEB_PROXY_BASE}"
 set_log_level
@@ -64,8 +41,6 @@ if [ "${SPARK_VIRTUAL_USER_NETWORK}" != "" ]; then
    echo "Virtual network detected changed LIBPROCESS_IP $LIBPROCESS_IP to $HOST"
    export LIBPROCESS_IP=$HOST
 fi
-
-
 
 exec /opt/spark/dist/bin/spark-class \
     org.apache.spark.deploy.mesos.MesosClusterDispatcher \
