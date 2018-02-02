@@ -38,8 +38,10 @@ object VaultHelper extends Logging {
   }
 
   def loadCas: Unit = {
-    val cassPass = getAllCasAndPassword
-    HTTPHelper.secureClient = Some(HTTPHelper.generateSecureClient(cassPass))
+    if(ConfigSecurity.vaultURI.isDefined) {
+      val cassPass = getAllCasAndPassword
+      HTTPHelper.secureClient = Some(HTTPHelper.generateSecureClient(cassPass))
+    }
   }
 
   private def getAllCasAndPassword: Seq[(String, String)] = {
