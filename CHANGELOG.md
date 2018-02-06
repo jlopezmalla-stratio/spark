@@ -4,6 +4,7 @@
 
 * Fix security validation check
 * Vault connection certificates are obtained dynamically
+* KMS Utils dependency remove from Stratio Spark Dispatcher and History Server
 
 ## 2.2.0.5 (upcoming)
 
