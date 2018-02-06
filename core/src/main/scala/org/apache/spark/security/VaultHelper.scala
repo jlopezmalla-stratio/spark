@@ -57,9 +57,7 @@ object VaultHelper extends Logging {
     val passPath = HTTPHelper.executeGet(requestUrl, "data",
       Some(Seq(("X-Vault-Token",
         ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]].head
-    logInfo("*************************")
-    logInfo(s"$passPath passPath")
-    logInfo("*************************")
+
     val requestPassUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/" +
       s"passwords/${passPath.replaceAll("/", "")}/keystore"
     logDebug(s"Requesting ca Pass from Vault: $requestPassUrl")
@@ -170,7 +168,7 @@ object VaultHelper extends Logging {
         ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
 
     keys.map(key => {
-      logInfo(s"Requesting CAS for $requestCA$key")
+      logDebug(s"Requesting CAS for $requestCA$key")
       HTTPHelper.executeGet(s"$requestCA$key",
         "data",
         Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))(s"${key}_crt")

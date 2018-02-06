@@ -100,20 +100,11 @@ object SSLConfig extends Logging {
 
     val keystore = KeyStore.getInstance("JKS")
     keystore.load(null)
-    log.info("**************************************************")
-    log.info(s"$cas cas")
-    log.info("**************************************************")
 
     val certs = getBase64FromCAs(cas)
-    log.info("**************************************************")
-    certs.foreach(cert => log.info(s"$cert certificate"))
-    log.info("**************************************************")
 
     certs.zipWithIndex.foreach { case (cert, index) =>
       val key = s"cert-${index}"
-      log.info("**************************************************")
-      log.info(s"$key key")
-      log.info("**************************************************")
       keystore.setCertificateEntry(key, generateCertificateFromDER(cert))
     }
 
