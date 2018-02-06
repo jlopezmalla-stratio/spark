@@ -2,8 +2,6 @@
 
 set -e
 
-source /root/kms_utils-0.2.1.sh
-
 function export_daemon_opts() {
     export SPARK_DAEMON_JAVA_OPTS=""
     if [ "${DCOS_SERVICE_NAME}" != "spark" ]; then
