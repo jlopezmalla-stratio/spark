@@ -169,12 +169,12 @@ object VaultHelper extends Logging {
       Some(Seq(("X-Vault-Token",
         ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
 
-    keys.flatMap(key => {
+    keys.map(key => {
       logInfo(s"Requesting CAS for $requestCA$key")
       HTTPHelper.executeGet(s"$requestCA$key",
-        "data", Some(Seq(("X-Vault-Token",
-          ConfigSecurity.vaultToken.get)))) (s"${key}_crt")
+        "data",
+        Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))(s"${key}_crt")
+        .asInstanceOf[String]
     }).mkString
   }
-
 }
