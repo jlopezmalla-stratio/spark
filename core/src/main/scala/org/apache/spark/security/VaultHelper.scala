@@ -173,8 +173,7 @@ object VaultHelper extends Logging {
       logInfo(s"Requesting CAS for $requestCA$key")
       HTTPHelper.executeGet(s"$requestCA$key",
         "data", Some(Seq(("X-Vault-Token",
-          ConfigSecurity.vaultToken.get))))
-      (s"${key}_crt")
+          ConfigSecurity.vaultToken.get)))) (s"${key}_crt")
     }).mkString
   }
 
