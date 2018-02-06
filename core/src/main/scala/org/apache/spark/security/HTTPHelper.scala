@@ -43,21 +43,12 @@ object HTTPHelper extends Logging{
 
   var secureClient: Option[HttpClient] = None
 
-  def generateSecureClient(cassPass: Seq[(String, String)]): HttpClient = {
-    val sslContext = SSLContextBuilder.create()
-    @tailrec
-    def loadCa(cassPass: Seq[(String, String)],
-               result: SSLContextBuilder): SSLContextBuilder = {
-      if (cassPass.isEmpty) result
-      else {
-        val (caFileName, caPass) = cassPass.head
-        val caFile = new File(caFileName)
-        val actualRes = result.loadTrustMaterial(caFile, caPass.toCharArray)
-        loadCa(cassPass.tail, actualRes)
-      }
-    }
+  def generateSecureClient(caFileName: String, caPass: String): HttpClient = {
+    val caFile = new File(caFileName)
+    val sslContext =
+      SSLContextBuilder.create().loadTrustMaterial(caFile, caPass.toCharArray).build()
 
-    HttpClients.custom().setSSLContext(loadCa(cassPass, sslContext).build()).build
+    HttpClients.custom().setSSLContext(sslContext).build
   }
 
   def executePost(requestUrl: String,

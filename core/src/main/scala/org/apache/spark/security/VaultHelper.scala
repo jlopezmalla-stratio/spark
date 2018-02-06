@@ -38,56 +38,31 @@ object VaultHelper extends Logging {
   }
 
   def loadCas: Unit = {
-    if(ConfigSecurity.vaultURI.isDefined) {
-      val cassPass = getAllCasAndPassword
-      HTTPHelper.secureClient = Some(HTTPHelper.generateSecureClient(cassPass))
+    if (ConfigSecurity.vaultURI.isDefined) {
+      val (caFileName, caPass) = getAllCaAndPassword
+      HTTPHelper.secureClient =
+        Some(HTTPHelper.generateSecureClient(caFileName, caPass))
     }
   }
 
-  private def getAllCasAndPassword: Seq[(String, String)] = {
+  private def getAllCaAndPassword: (String, String) = {
     val cas = getAllCas
-    val casPAss = getCAsPass
-
-    cas.map(caVaultFolder => {
-      val passVaultPath = casPAss.find(pass => pass == caVaultFolder).getOrElse("default")
-      val ca = getCa(caVaultFolder)
-      val caPass = getCAPass(passVaultPath)
-      val caFilePath = SSLConfig.generateTrustStore("ca-trust", ca, caPass)
-      (caFilePath, caPass)
-    })
-
+    val caPass = getCAPass
+    (SSLConfig.generateTrustStore("ca-trust", cas, caPass), caPass)
   }
 
-  private def getCa(ca: String): String = {
-    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/$ca"
-    logDebug(s"Requesting ca from Vault: $requestUrl")
-    HTTPHelper.executeGet(requestUrl, "data",
-      Some(Seq(("X-Vault-Token",
-        ConfigSecurity.vaultToken.get))))(s"${ca}_crt").asInstanceOf[String]
-  }
-
-  private def getCAPass(ca: String): String = {
-    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/$ca/keystore"
-    logDebug(s"Requesting ca Pass from Vault: $requestUrl")
-    HTTPHelper.executeGet(requestUrl, "data",
-      Some(Seq(("X-Vault-Token",
-        ConfigSecurity.vaultToken.get))))(s"pass").asInstanceOf[String]
-  }
-
-  private def getAllCas: Seq[String] = {
-    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/?list=true"
-    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
-    HTTPHelper.executeGet(requestUrl, "data",
-      Some(Seq(("X-Vault-Token",
-        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
-  }
-
-  private def getCAsPass: Seq[String] = {
+  private[security] def getCAPass: String = {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/?list=true"
     logDebug(s"Requesting ca-trust certificates passwords list from Vault: $requestUrl")
-    HTTPHelper.executeGet(requestUrl, "data",
+    val passPath = HTTPHelper.executeGet(requestUrl, "data",
       Some(Seq(("X-Vault-Token",
-        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
+        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]].head
+
+    val requestPassUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/$passPath/keystore"
+    logDebug(s"Requesting ca Pass from Vault: $requestPassUrl")
+    HTTPHelper.executeGet(requestPassUrl, "data",
+      Some(Seq(("X-Vault-Token",
+        ConfigSecurity.vaultToken.get))))(s"pass").asInstanceOf[String]
   }
 
   def getRoleIdFromVault(role: String): String = {
@@ -182,4 +157,22 @@ object VaultHelper extends Logging {
       "data", Some(Seq(("X-Vault-Token",
       ConfigSecurity.vaultToken.get))))(idJSonSecret).asInstanceOf[String]
   }
+
+  private [security] def getAllCas: String = {
+    val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/?list=true"
+    val requestCA = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/"
+    logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
+    val keys = HTTPHelper.executeGet(requestUrl, "data",
+      Some(Seq(("X-Vault-Token",
+        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
+
+    keys.flatMap(key => {
+      logInfo(s"Requesting CAS for $requestCA$key")
+      HTTPHelper.executeGet(s"$requestCA$key",
+        "data", Some(Seq(("X-Vault-Token",
+          ConfigSecurity.vaultToken.get))))
+      (s"${key}_crt")
+    }).mkString
+  }
+
 }

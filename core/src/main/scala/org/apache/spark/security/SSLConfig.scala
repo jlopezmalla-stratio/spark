@@ -39,10 +39,8 @@ object SSLConfig extends Logging {
 
     val sparkSSLPrefix = "spark.ssl."
 
-    val vaultTrustStorePath = options.get(s"${sslType}_VAULT_TRUSTSTORE_PATH")
-    val vaultTrustStorePassPath = options.get(s"${sslType}_VAULT_TRUSTSTORE_PASS_PATH")
-    val trustStore = VaultHelper.getTrustStore(vaultTrustStorePath.get)
-    val trustPass = VaultHelper.getCertPassForAppFromVault(vaultTrustStorePassPath.get)
+    val trustStore = VaultHelper.getAllCas
+    val trustPass = VaultHelper.getCAPass
     val trustStorePath = generateTrustStore(sslType, trustStore, trustPass)
 
     logInfo(s"Setting SSL values for $sslType")
