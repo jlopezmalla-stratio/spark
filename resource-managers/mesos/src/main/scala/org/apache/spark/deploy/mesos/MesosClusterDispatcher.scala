@@ -105,8 +105,6 @@ private[mesos] object MesosClusterDispatcher
       .aggregate(new SparkConf)((conf, keyValue) => conf.set(keyValue._1, keyValue._2),
         (conf1, conf2) => conf1.setAll(conf2.getAll))
 
-    conf.getAll.foreach{case (key, value) => logInfo(s"$key; $value")}
-
     val dispatcherArgs = new MesosClusterDispatcherArguments(args, conf)
     conf.setMaster(dispatcherArgs.masterUrl)
     conf.setAppName(dispatcherArgs.name)

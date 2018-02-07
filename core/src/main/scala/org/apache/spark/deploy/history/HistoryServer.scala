@@ -265,11 +265,15 @@ object HistoryServer extends Logging {
   private val conf = {
     val securityOps = ConfigSecurity.prepareEnvironment
     val sparkConf = new SparkConf
-    if(securityOps.isEmpty) sparkConf
-    else {
+    if(securityOps.get("principal").isDefined
+      && securityOps.get("keytabPath").isDefined){
       sparkConf.set("spark.history.kerberos.enabled", "true")
         .set("spark.history.kerberos.principal", securityOps("principal"))
         .set("spark.history.kerberos.keytab", securityOps("keytabPath"))
+    }
+    else {
+      logInfo("Security conf loaded with none Kerberos info skipping Kerberos conf")
+      sparkConf
     }
   }
 
