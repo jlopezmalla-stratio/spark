@@ -2,8 +2,8 @@
 
 set -e
 
-export DISPATCHER_PORT=7077
-export DISPATCHER_UI_PORT=7076
+export DISPATCHER_PORT=${PORT0}
+export DISPATCHER_UI_PORT=${PORT1}
 
 # determine scheme and derive WEB
 SCHEME=http
