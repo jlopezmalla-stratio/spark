@@ -11,11 +11,6 @@ RUN yum -y update \
     && yum -y upgrade \
     && yum -y install java-1.8.0-openjdk curl wget\
     && yum -y clean all \
-    && wget https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 \
-    && curl -o /root/kms_utils-0.2.1.sh http://sodio.stratio.com/repository/paas/kms_utils/0.2.1/kms_utils-0.2.1.sh \
-    && mv jq-linux64 /usr/local/bin/jq \
-    && chmod 755 /usr/local/bin/jq \
-    && ln -s /usr/local/bin/jq /usr/bin/ \
     && mkdir -p /var/sds/spark/ \
     && wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 \
     && chmod +x /usr/local/bin/dumb-init \

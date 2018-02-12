@@ -21,10 +21,7 @@ import scala.util.{Failure, Success, Try}
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
-
-
 object ConfigSecurity extends Logging {
-
 
   val secretsFolder: String = sys.env.get("SPARK_DRIVER_SECRET_FOLDER") match {
     case Some(folder) =>
@@ -77,15 +74,12 @@ object ConfigSecurity extends Logging {
   }
 
   def prepareEnvironment: Map[String, String] = {
-
     logDebug(s"env VAR: ${sys.env.mkString("\n")}")
     val secretOptionsMap = ConfigSecurity.extractSecretFromEnv(sys.env)
     logDebug(s"secretOptionsMap: ${secretOptionsMap.mkString("\n")}")
     loadingConf(secretOptionsMap)
     prepareEnvironment(secretOptionsMap)
-
   }
-
 
   def extractSecretFromEnv(env: Map[String, String]): Map[String,
     Map[String, String]] = {
@@ -109,7 +103,9 @@ object ConfigSecurity extends Logging {
       }
     }
 
-    env.groupBy(extract).filter(_._2.exists(_._1.toLowerCase.contains("enable")))
+    env.groupBy(extract).filter(_._2.exists {
+      case (key, value) => key.toLowerCase.contains("enable") && value.equals("true")
+    })
       .flatMap{case (key, value) =>
         if (key.nonEmpty) Option((key, value.map{case (propKey, propValue) =>
           (propKey.split(sparkSecurityPrefix.toUpperCase).tail.head, propValue)
@@ -130,16 +126,18 @@ object ConfigSecurity extends Logging {
   }
 
   private def prepareEnvironment(secretOptions: Map[String,
-                                   Map[String, String]]): Map[String, String] =
+                                   Map[String, String]]): Map[String, String] = {
+    VaultHelper.loadCas
     secretOptions flatMap {
       case ("kerberos", options) =>
         KerberosConfig.prepareEnviroment(options)
       case ("datastore", options) =>
-          SSLConfig.prepareEnvironment(SSLConfig.sslTypeDataStore, options)
+        SSLConfig.prepareEnvironment(SSLConfig.sslTypeDataStore, options)
       case ("db", options) =>
         DBConfig.prepareEnvironment(options)
       case ("mesos", options) =>
         MesosConfig.prepareEnvironment(options)
       case _ => Map.empty[String, String]
     }
+  }
 }

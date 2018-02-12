@@ -1,8 +1,10 @@
 # Changelog
 
-## 2.3.0.0 (upcoming)
+## 2.2.0.6 (upcoming)
 
-* Pending changelog
+* Fix security validation check
+* Vault connection certificates are obtained dynamically
+* KMS Utils dependency remove from Stratio Spark Dispatcher and History Server
 
 ## 2.2.0.5 (upcoming)
 

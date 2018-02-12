@@ -25,6 +25,7 @@ import org.apache.spark.deploy.mesos.ui.MesosClusterUI
 import org.apache.spark.deploy.rest.mesos.MesosRestServer
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.cluster.mesos._
+import org.apache.spark.security.ConfigSecurity
 import org.apache.spark.util.{CommandLineUtils, ShutdownHookManager, SparkUncaughtExceptionHandler, Utils}
 
 /*
@@ -99,7 +100,11 @@ private[mesos] object MesosClusterDispatcher
   override def main(args: Array[String]) {
     Thread.setDefaultUncaughtExceptionHandler(SparkUncaughtExceptionHandler)
     Utils.initDaemon(log)
-    val conf = new SparkConf
+
+    val conf = ConfigSecurity.prepareEnvironment
+      .aggregate(new SparkConf)((conf, keyValue) => conf.set(keyValue._1, keyValue._2),
+        (conf1, conf2) => conf1.setAll(conf2.getAll))
+
     val dispatcherArgs = new MesosClusterDispatcherArguments(args, conf)
     conf.setMaster(dispatcherArgs.masterUrl)
     conf.setAppName(dispatcherArgs.name)
