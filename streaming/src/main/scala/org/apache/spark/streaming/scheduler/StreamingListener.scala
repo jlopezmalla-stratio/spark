@@ -20,6 +20,7 @@ package org.apache.spark.streaming.scheduler
 import scala.collection.mutable.Queue
 
 import org.apache.spark.annotation.DeveloperApi
+import org.apache.spark.scheduler.SparkListenerEvent
 import org.apache.spark.util.Distribution
 
 /**
@@ -27,7 +28,16 @@ import org.apache.spark.util.Distribution
  * Base trait for events related to StreamingListener
  */
 @DeveloperApi
-sealed trait StreamingListenerEvent
+sealed trait StreamingListenerEvent extends SparkListenerEvent {
+  protected[spark] override def logEvent: Boolean = true
+}
+
+@DeveloperApi
+case class StreamingListenerApplicationStart(batchDuration: Long, startTime: Long)
+  extends StreamingListenerEvent
+
+@DeveloperApi
+case class StreamingListenerApplicationEnd(endTime: Long) extends StreamingListenerEvent
 
 @DeveloperApi
 case class StreamingListenerStreamingStarted(time: Long) extends StreamingListenerEvent
@@ -50,6 +60,11 @@ case class StreamingListenerOutputOperationCompleted(outputOperationInfo: Output
   extends StreamingListenerEvent
 
 @DeveloperApi
+case class StreamingListenerInputStreamRegistered(
+          streamId: Int, name: String, isReceiverBased: Boolean)
+  extends StreamingListenerEvent
+
+@DeveloperApi
 case class StreamingListenerReceiverStarted(receiverInfo: ReceiverInfo)
   extends StreamingListenerEvent
 
@@ -68,6 +83,18 @@ case class StreamingListenerReceiverStopped(receiverInfo: ReceiverInfo)
  */
 @DeveloperApi
 trait StreamingListener {
+
+  /** Called when a streaming application has been started */
+  def onStreamingApplicationStarted(
+      streamingListenerApplicationStart: StreamingListenerApplicationStart) { }
+
+  /** Called when a streaming application has been stopped */
+  def onStreamingApplicationEnd(
+      streamingListenerApplicationEnd: StreamingListenerApplicationEnd) { }
+
+  /** Called when an InputDStream has been registered */
+  def onInputStreamRegistered(
+      streamingListenerInputStreamRegistered: StreamingListenerInputStreamRegistered) { }
 
   /** Called when the streaming has been started */
   def onStreamingStarted(streamingStarted: StreamingListenerStreamingStarted) { }

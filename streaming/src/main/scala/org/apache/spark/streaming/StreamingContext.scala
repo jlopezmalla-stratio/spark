@@ -185,11 +185,11 @@ class StreamingContext private[streaming] (
 
   private[streaming] val waiter = new ContextWaiter
 
-  private[streaming] val progressListener = new StreamingJobProgressListener(this)
+  private[streaming] val progressListener = new StreamingJobProgressListener(conf)
 
   private[streaming] val uiTab: Option[StreamingTab] =
     if (conf.getBoolean("spark.ui.enabled", true)) {
-      Some(new StreamingTab(this))
+      Some(new StreamingTab(progressListener, sc.ui.get))
     } else {
       None
     }
@@ -601,6 +601,9 @@ class StreamingContext private[streaming] (
         assert(env.metricsSystem != null)
         env.metricsSystem.registerSource(streamingSource)
         uiTab.foreach(_.attach())
+        addStreamingListener(progressListener)
+        scheduler.listenerBus.post(StreamingListenerApplicationStart(
+        graph.batchDuration.milliseconds, System.currentTimeMillis()))
         logInfo("StreamingContext started")
       case ACTIVE =>
         logWarning("StreamingContext has already been started")
@@ -678,9 +681,11 @@ class StreamingContext private[streaming] (
           // interrupted. See SPARK-12001 for more details. Because the body of this case can be
           // executed twice in the case of a partial stop, all methods called here need to be
           // idempotent.
+          scheduler.listenerBus.post(StreamingListenerApplicationEnd(System.currentTimeMillis()))
           Utils.tryLogNonFatalError {
             scheduler.stop(stopGracefully)
           }
+          scheduler.stop(stopGracefully)
           // Removing the streamingSource to de-register the metrics on stop()
           Utils.tryLogNonFatalError {
             env.metricsSystem.removeSource(streamingSource)
