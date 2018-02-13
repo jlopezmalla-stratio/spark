@@ -21,15 +21,14 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.util.Failure
-
 import org.apache.commons.lang3.SerializationUtils
-
 import org.apache.spark.ExecutorAllocationClient
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.SparkHadoopWriterUtils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.api.python.PythonDStream
+import org.apache.spark.streaming.dstream.ReceiverInputDStream
 import org.apache.spark.streaming.ui.UIUtils
 import org.apache.spark.util.{EventLoop, ThreadUtils}
 
@@ -84,6 +83,11 @@ class JobScheduler(val ssc: StreamingContext) extends Logging {
     } ssc.addStreamingListener(rateController)
 
     listenerBus.start()
+
+    ssc.graph.getInputStreams().foreach { inputStream =>
+      listenerBus.post(StreamingListenerInputStreamRegistered(
+        inputStream.id, inputStream.name, inputStream.isInstanceOf[ReceiverInputDStream[_]]))
+    }
     receiverTracker = new ReceiverTracker(ssc)
     inputInfoTracker = new InputInfoTracker(ssc)
 
@@ -92,6 +96,7 @@ class JobScheduler(val ssc: StreamingContext) extends Logging {
       case _ => null
     }
 
+    logInfo("JOB SCHEDULER")
     executorAllocationManager = ExecutorAllocationManager.createIfEnabled(
       executorAllocClient,
       receiverTracker,

@@ -224,7 +224,9 @@ private[spark] class StreamingJobProgressListener(conf: SparkConf)
   }
 
   def streamName(streamId: Int): Option[String] = {
-    inputStreams.get(streamId).map(_._1)
+    synchronized {
+      inputStreams.get(streamId).map(_._1)
+    }
   }
 
   /**
