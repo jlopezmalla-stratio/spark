@@ -683,6 +683,13 @@ class StreamingContext private[streaming] (
           Utils.tryLogNonFatalError {
             scheduler.stop(stopGracefully)
           }
+          logInfo("Trying to Stop event log listener")
+          Utils.tryLogNonFatalError {
+            sparkContext.eventLogger.foreach(eventLog => {
+              eventLog.stop()
+              logInfo("Event Log Stopped")
+            })
+          }
           scheduler.stop(stopGracefully)
           // Removing the streamingSource to de-register the metrics on stop()
           Utils.tryLogNonFatalError {
