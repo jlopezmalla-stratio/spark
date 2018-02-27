@@ -18,8 +18,6 @@ package org.apache.spark.security
 
 import org.apache.spark.internal.Logging
 
-import scala.util.Try
-
 object VaultHelper extends Logging {
 
 
@@ -76,11 +74,6 @@ object VaultHelper extends Logging {
     val keytab64 = data.find(_._1.contains("keytab")).get._2.asInstanceOf[String]
     val principal = data.find(_._1.contains("principal")).get._2.asInstanceOf[String]
     (keytab64, principal)
-  }
-
-  // TODO refactor these two functions into one
-  def getMesosPrincipalAndSecret(instanceName: String): (String, String) = {
-    getPassPrincipalFromVault(s"/v1/userland/passwords/$instanceName/mesos")
   }
 
   def getPassPrincipalFromVault(vaultPath: String): (String, String) = {

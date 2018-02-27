@@ -40,7 +40,8 @@ object KerberosConfig extends Logging{
 
   private def getKeytabPrincipal(keytab64: String, principal: String): String = {
     val bytes = DatatypeConverter.parseBase64Binary(keytab64)
-    val kerberosSecretFile = Files.createFile(Paths.get(s"/tmp/$principal.keytab"),
+    val kerberosSecretFile = Files.createFile(Paths.get(
+      s"${ConfigSecurity.secretsFolder}/$principal.keytab"),
       PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
     kerberosSecretFile.toFile.deleteOnExit() // just to be sure
     val writePath = Files.write(kerberosSecretFile, bytes)

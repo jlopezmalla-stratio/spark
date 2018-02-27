@@ -1,8 +1,14 @@
 # Changelog
 
-## 2.2.0.5 (upcoming)
+## 2.2.0.5 (February 14, 2018)
 
+* Fixed Supervise mode
 * Separate stderr and stdout in dispatcher
+* Fix history server stderr/stdout. Now is possible to set log level through SPARK_LOG_LEVEL
+* Removed mesos security from History Server and unified environment variable VAULT_HOSTS
+* Secret folder path configurable
+* Changed log format according to Stratio standards
+* Mesos Role no longer obtain mesos pricipal and mesos secret from vault in Spark jobs
 
 ## 2.2.0.4 (January 11, 2018)
 

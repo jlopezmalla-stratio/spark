@@ -267,25 +267,34 @@ object HistoryServer extends Logging {
   val UI_PATH_PREFIX = "/history"
 
   def main(argStrings: Array[String]): Unit = {
-    Utils.initDaemon(log)
-    ConfigSecurity.prepareEnvironment
-    new HistoryServerArguments(conf, argStrings)
-    initSecurity()
-    val securityManager = createSecurityManager(conf)
+    try {
+      Utils.initDaemon(log)
+      ConfigSecurity.prepareEnvironment
+      new HistoryServerArguments(conf, argStrings)
+      initSecurity()
+      val securityManager = createSecurityManager(conf)
 
-    val providerName = conf.getOption("spark.history.provider")
-      .getOrElse(classOf[FsHistoryProvider].getName())
-    val provider = Utils.classForName(providerName)
-      .getConstructor(classOf[SparkConf])
-      .newInstance(conf)
-      .asInstanceOf[ApplicationHistoryProvider]
+      val providerName = conf.getOption("spark.history.provider")
+        .getOrElse(classOf[FsHistoryProvider].getName())
+      val provider = Utils.classForName(providerName)
+        .getConstructor(classOf[SparkConf])
+        .newInstance(conf)
+        .asInstanceOf[ApplicationHistoryProvider]
 
-    val port = conf.getInt("spark.history.ui.port", 18080)
+      val port = conf.getInt("spark.history.ui.port", 18080)
 
-    val server = new HistoryServer(conf, provider, securityManager, port)
-    server.bind()
+      val server = new HistoryServer(conf, provider, securityManager, port)
+      server.bind()
 
-    ShutdownHookManager.addShutdownHook { () => server.stop() }
+      ShutdownHookManager.addShutdownHook { () => server.stop() }
+    } catch {
+
+      // History server using Standard Stratio log format
+      case e: Exception =>
+        logError("Error initializing History Server", e)
+        throw e
+
+    }
 
     // Wait until the end of the world... or if the HistoryServer process is manually stopped
     while(true) { Thread.sleep(Int.MaxValue) }

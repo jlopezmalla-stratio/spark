@@ -27,7 +27,6 @@ import java.text.ParseException
 import scala.annotation.tailrec
 import scala.collection.mutable.{ArrayBuffer, HashMap, Map}
 import scala.util.Properties
-
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.conf.{Configuration => HadoopConfiguration}
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -43,10 +42,10 @@ import org.apache.ivy.core.settings.IvySettings
 import org.apache.ivy.plugins.matcher.GlobPatternMatcher
 import org.apache.ivy.plugins.repository.file.FileRepository
 import org.apache.ivy.plugins.resolver.{ChainResolver, FileSystemResolver, IBiblioResolver}
-
 import org.apache.spark._
 import org.apache.spark.api.r.RUtils
 import org.apache.spark.deploy.rest._
+import org.apache.spark.internal.Logging
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.scheduler.{KerberosUser, KerberosUtil}
 import org.apache.spark.security.{ConfigSecurity, VaultHelper}
@@ -67,7 +66,7 @@ private[deploy] object SparkSubmitAction extends Enumeration {
  * This program handles setting up the classpath with relevant Spark dependencies and provides
  * a layer over the different cluster managers and deploy modes that Spark supports.
  */
-object SparkSubmit extends CommandLineUtils {
+object SparkSubmit extends CommandLineUtils with Logging{
 
   // Cluster managers
   private val YARN = 1
@@ -184,7 +183,14 @@ object SparkSubmit extends CommandLineUtils {
             }
         }
       } else {
-        runMain(childArgs, childClasspath, sysProps, childMainClass, args.verbose)
+        // Retrieve errors to log them into the Stratio solution
+        try {
+          runMain(childArgs, childClasspath, sysProps, childMainClass, args.verbose)
+        } catch {
+          case e: Exception =>
+            logError("Error from launched Application", e)
+            throw e
+        }
       }
     }
 

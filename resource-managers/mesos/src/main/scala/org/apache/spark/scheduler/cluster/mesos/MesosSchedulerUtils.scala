@@ -79,16 +79,15 @@ trait MesosSchedulerUtils extends Logging {
     fwInfoBuilder.setHostname(Option(conf.getenv("SPARK_PUBLIC_DNS")).getOrElse(
       conf.get(DRIVER_HOST_ADDRESS)))
 
-    if(ConfigSecurity.vaultURI.isDefined && conf.getOption("spark.mesos.role").isDefined) {
+    if(ConfigSecurity.vaultURI.isDefined &&
+      conf.getOption("spark.mesos.principal").isDefined &&
+      conf.getOption("spark.mesos.secret").isDefined) {
 
-      val(mSecret, mPrincipal) =
-        VaultHelper.getMesosPrincipalAndSecret(conf.getOption("spark.mesos.role").get)
+      val(mPrincipal, mSecret) = (conf.get("spark.mesos.principal"), conf.get("spark.mesos.secret"))
 
-      conf.set("spark.mesos.principal", mPrincipal)
       fwInfoBuilder.setPrincipal(mPrincipal)
       credBuilder.setPrincipal(mPrincipal)
 
-      conf.set("spark.mesos.secret", mSecret)
       credBuilder.setSecret(mSecret)
 
     }

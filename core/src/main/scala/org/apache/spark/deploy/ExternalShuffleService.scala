@@ -110,7 +110,16 @@ object ExternalShuffleService extends Logging {
   private val barrier = new CountDownLatch(1)
 
   def main(args: Array[String]): Unit = {
-    main(args, (conf: SparkConf, sm: SecurityManager) => new ExternalShuffleService(conf, sm))
+    try {
+      main(args, (conf: SparkConf, sm: SecurityManager) => new ExternalShuffleService(conf, sm))
+    } catch {
+
+      // Notify using the Stratio standard format
+      case e: Exception =>
+        logError("Error initializing External Spark Shuffle service", e)
+        throw e
+
+    }
   }
 
   /** A helper main method that allows the caller to call this with a custom shuffle service. */

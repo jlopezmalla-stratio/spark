@@ -16,13 +16,25 @@
  */
 package org.apache.spark.security
 
-
 import scala.util.{Failure, Success, Try}
 
-
 import org.apache.spark.internal.Logging
+import org.apache.spark.util.Utils
+
+
 
 object ConfigSecurity extends Logging {
+
+
+  val secretsFolder: String = sys.env.get("SPARK_DRIVER_SECRET_FOLDER") match {
+    case Some(folder) =>
+      logDebug(s"Creating secret folder using driver information in path $folder")
+      Utils.createDirectoryByName(folder).getAbsolutePath
+    case None =>
+      logDebug(s"Creating secret folder for executor")
+      Utils.createTempDir(
+       s"${sys.env.getOrElse("SPARK_SECRETS_FOLDER", "/tmp")}", "spark").getAbsolutePath
+  }
 
   lazy val vaultToken: Option[String] =
 
@@ -126,6 +138,8 @@ object ConfigSecurity extends Logging {
           SSLConfig.prepareEnvironment(SSLConfig.sslTypeDataStore, options)
       case ("db", options) =>
         DBConfig.prepareEnvironment(options)
+      case ("mesos", options) =>
+        MesosConfig.prepareEnvironment(options)
       case _ => Map.empty[String, String]
     }
 }

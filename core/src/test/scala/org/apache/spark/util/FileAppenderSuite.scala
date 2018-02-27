@@ -259,8 +259,9 @@ class FileAppenderSuite extends SparkFunSuite with BeforeAndAfter with Logging {
       // If InputStream was closed without first stopping the appender, an exception will be logged
       verify(mockAppender, atLeast(1)).doAppend(loggingEventCaptor.capture)
       val loggingEvent = loggingEventCaptor.getValue
-      assert(loggingEvent.getThrowableInformation !== null)
-      assert(loggingEvent.getThrowableInformation.getThrowable.isInstanceOf[IOException])
+
+      assert(hasExceptions(loggingEvent) == true)
+      assert(containsException(loggingEvent, classOf[IOException]))
     } finally {
       logger.setLevel(oldLogLevel)
     }
@@ -297,8 +298,9 @@ class FileAppenderSuite extends SparkFunSuite with BeforeAndAfter with Logging {
       verify(mockAppender, atLeast(0)).doAppend(loggingEventCaptor.capture)
       import scala.collection.JavaConverters._
       loggingEventCaptor.getAllValues.asScala.foreach { loggingEvent =>
-        assert(loggingEvent.getThrowableInformation === null
-          || !loggingEvent.getThrowableInformation.getThrowable.isInstanceOf[IOException])
+        assert(
+          hasExceptions(loggingEvent)
+            || !containsException(loggingEvent, classOf[IOException]))
       }
     } finally {
       logger.setLevel(oldLogLevel)
@@ -358,6 +360,15 @@ class FileAppenderSuite extends SparkFunSuite with BeforeAndAfter with Logging {
     testFile.getParentFile.listFiles.filter { file =>
       file.getName.startsWith(testFile.getName)
     }.foreach { _.delete() }
+  }
+
+  def hasExceptions(loggingEvent: LoggingEvent): Boolean =
+    loggingEvent.getRenderedMessage().contains("@data")
+
+  def containsException(loggingEvent: LoggingEvent, e: Class[_]): Boolean = {
+    val msg = loggingEvent.getRenderedMessage
+    val dataPart = msg.substring(msg.indexOf("@data"))
+    dataPart.contains(e.getCanonicalName)
   }
 
   /** Used to synchronize when read is called on a stream */

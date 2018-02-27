@@ -29,8 +29,8 @@ function add_if_non_empty() {
 function configure_properties() {
 
 echo '' > /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
-if [[ "$SECURED_MESOS" == "true" ]]
-then
+if [ "$SECURED_MESOS" == "true" ]; then
+    if [ ! -z "$TENANT_NAME" ]; then
      #Login to get access token for Vault
      login
      #Get Mesos secrets from Vault
@@ -44,7 +44,10 @@ then
       echo "spark.mesos.principal=${MESOS_PRINCIPAL}" >> /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
       echo "spark.mesos.secret=${MESOS_SECRET}" >> /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
       echo "spark.mesos.role=${TENANT_NAME}" >> /opt/spark/dist/conf/mesos-cluster-dispatcher.properties
-
+    else
+        echo 'Please set the TENANT_NAME variable to download the secrets from Vault (Mesos security enabled)'
+        exit -1
+    fi
 else
 	echo 'MESOS SECURITY IS NOT ENABLE'
 fi

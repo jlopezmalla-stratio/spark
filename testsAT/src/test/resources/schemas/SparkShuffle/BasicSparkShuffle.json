@@ -1,0 +1,11 @@
+{
+  "service": {
+    "name": "spark-shuffle",
+    "instances": 20,
+    "cpus": 0.2,
+    "mem": 128,
+    "spark-daemon-memory": "512m",
+    "port": 7337,
+    "host_path": "/var/lib/spark_data"
+  }
+}

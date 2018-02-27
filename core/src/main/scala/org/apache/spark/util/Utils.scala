@@ -314,6 +314,34 @@ private[spark] object Utils extends Logging {
   }
 
   /**
+    * Create a temporary directory inside the given parent directory. The directory will be
+    * automatically deleted when the VM shuts down.
+    * It wont have an UUID identifier
+    */
+  def createDirectoryByName(root: String): File = {
+    var attempts = 0
+    val maxAttempts = MAX_DIR_CREATION_ATTEMPTS
+    var dir: File = null
+    while (dir == null) {
+      attempts += 1
+      if (attempts > maxAttempts) {
+        throw new IOException("Failed to create a temp directory (under " + root + ") after " +
+          maxAttempts + " attempts!")
+      }
+      try {
+        dir = new File(root)
+        if (dir.exists() || !dir.mkdirs()) {
+          dir = null
+        }
+      } catch { case e: SecurityException => dir = null; }
+    }
+
+    dir = dir.getCanonicalFile
+    ShutdownHookManager.registerShutdownDeleteDir(dir)
+    dir
+  }
+
+  /**
    * Copy all data from an InputStream to an OutputStream. NIO way of file stream to file stream
    * copying is disabled by default unless explicitly set transferToEnabled as true,
    * the parameter transferToEnabled should be configured by spark.file.transferTo = [true|false].
