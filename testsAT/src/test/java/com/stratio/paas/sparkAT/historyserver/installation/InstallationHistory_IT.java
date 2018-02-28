@@ -1,5 +1,5 @@
 
-package com.stratio.paas.sparkAT;
+package com.stratio.paas.sparkAT.historyserver.installation;
 
 import com.stratio.qa.cucumber.testng.CucumberRunner;
 import com.stratio.tests.utils.BaseTest;
@@ -12,8 +12,8 @@ public class InstallationHistory_IT extends BaseTest {
     public InstallationHistory_IT() {
     }
 
-    @Test(enabled = true, groups = {"installation"})
-    public void installation() throws Exception {
+    @Test(enabled = true, groups = {"InstallHistoryServer"})
+    public void installationHistoryServer() throws Exception {
         new CucumberRunner(this.getClass()).runCukes();
     }
 }

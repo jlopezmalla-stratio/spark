@@ -1,10 +1,10 @@
 
 package com.stratio.tests.utils;
 
-import com.stratio.qa.cucumber.testng.ICucumberFormatter;
-import com.stratio.qa.cucumber.testng.ICucumberReporter;
 import com.stratio.paas.sparkAT.specs.BaseSpec;
 import com.stratio.paas.sparkAT.specs.Common;
+import com.stratio.qa.cucumber.testng.ICucumberFormatter;
+import com.stratio.qa.cucumber.testng.ICucumberReporter;
 import gherkin.formatter.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

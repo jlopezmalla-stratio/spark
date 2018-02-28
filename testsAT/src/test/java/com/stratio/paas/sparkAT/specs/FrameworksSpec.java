@@ -8,7 +8,6 @@ import cucumber.api.java.en.Then;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-
 import static com.stratio.qa.assertions.Assertions.assertThat;
 
 public class FrameworksSpec extends BaseSpec {
