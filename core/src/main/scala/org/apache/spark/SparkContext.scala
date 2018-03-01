@@ -582,16 +582,12 @@ class SparkContext(config: SparkConf) extends Logging {
     }
 
     logInfo("Adding signal") // force eager creation of logger
-    val bool:  => Boolean = { =>
-      {
-        scala.util.Try {
-          logInfo("Invoking stop() from shutdown hook")
-          stop()
-        }.isSuccess
+    Seq("TERM").foreach { sig =>
+      SignalUtils.register(sig) {
+        stop()
+        false
       }
-      )
     }
-    SignalUtils.register("TERM") (bool)
   } catch {
     case NonFatal(e) =>
       logError("Error initializing SparkContext.", e)

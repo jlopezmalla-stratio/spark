@@ -594,17 +594,12 @@ class StreamingContext private[streaming] (
         shutdownHookRef = ShutdownHookManager.addShutdownHook(
           StreamingContext.SHUTDOWN_HOOK_PRIORITY)(stopOnShutdown)
         logInfo("Adding signal") // force eager creation of logger
-      val bool:  => Boolean = { =>
-    {
-    scala.util.Try {
-    logInfo("Invoking stop() from shutdown hook")
-    stop()
-    }.isSuccess
-    }
-    )
-    }
-    SignalUtils.register("TERM") (bool)
-
+        Seq("TERM").foreach { sig =>
+          SignalUtils.register(sig) {
+            stop()
+            false
+          }
+        }
         // Registering Streaming Metrics at the start of the StreamingContext
         assert(env.metricsSystem != null)
         env.metricsSystem.registerSource(streamingSource)
