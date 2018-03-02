@@ -74,9 +74,7 @@ object ConfigSecurity extends Logging {
   }
 
   def prepareEnvironment: Map[String, String] = {
-    logDebug(s"env VAR: ${sys.env.mkString("\n")}")
     val secretOptionsMap = ConfigSecurity.extractSecretFromEnv(sys.env)
-    logDebug(s"secretOptionsMap: ${secretOptionsMap.mkString("\n")}")
     loadingConf(secretOptionsMap)
     prepareEnvironment(secretOptionsMap)
   }

@@ -77,9 +77,9 @@ object HTTPHelper extends Logging{
 
     val client = secureClient match {
       case Some(secureClient) =>
-        logInfo(s"Using secure client")
+        logDebug(s"Using secure client")
         secureClient
-      case _ => logInfo(s"Using non secure client")
+      case _ => logDebug(s"Using non secure client")
         clientNaive
     }
 
