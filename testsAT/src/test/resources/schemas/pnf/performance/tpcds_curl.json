@@ -1,0 +1,41 @@
+{
+  "action": "CreateSubmissionRequest",
+  "appArgs": ["$TPCDS_PATH", "$QUERIES", "$ITERATIONS", "$OUTPUT_PATH"],
+  "appResource": "$JARS",
+  "clientSparkVersion": "2.2.0",
+  "environmentVariables": {
+    "SPARK_SCALA_VERSION": "2.11"
+  },
+  "mainClass": "Main",
+  "sparkProperties": {
+    "spark.jars": "$JARS",
+    "spark.app.name": "Spark-TCP-DS",
+    "spark.mesos.executor.docker.image": "SPARK_DOCKER_IMAGE",
+    "spark.mesos.executor.docker.volumes": "/etc/pki/ca-trust/extracted/java/cacerts/:/usr/lib/jvm/jre1.8.0_112/lib/security/cacerts:ro,/etc/resolv.conf:/etc/resolv.conf:ro",
+    "spark.driver.supervise": "false",
+    "spark.secret.vault.role": "open",
+    "spark.mesos.executor.docker.network.name": "stratio",
+    "spark.mesos.driver.docker.network.name": "stratio",
+
+    "spark.mesos.driverEnv.SPARK_SECURITY_HDFS_ENABLE": "true",
+    "spark.mesos.driverEnv.SPARK_SECURITY_HDFS_CONF_URI": "$HDFS_CONFIG_URL",
+    "spark.mesos.driverEnv.SPARK_SECURITY_KERBEROS_ENABLE": "true",
+    "spark.mesos.driverEnv.SPARK_SECURITY_KERBEROS_VAULT_PATH": "/v1/userland/kerberos/crossdata-1",
+    "spark.mesos.driverEnv.SPARK_SECURITY_MESOS_ENABLE" : "true",
+    "spark.mesos.driverEnv.SPARK_SECURITY_MESOS_VAULT_PATH" : "v1/userland/passwords/spark-fw/mesos",
+
+    "spark.mesos.driverEnv.VAULT_PROTOCOL": "https",
+    "spark.mesos.driverEnv.VAULT_HOSTS": "vault.service.paas.labs.stratio.com",
+    "spark.mesos.driverEnv.VAULT_PORT": "8200",
+
+    "spark.submit.deployMode": "cluster",
+    "spark.mesos.role": "spark-fw",
+    "spark.mesos.executor.home": "/opt/spark/dist",
+    "spark.executor.cores": "$CORES_PER_EXECUTOR",
+    "spark.cores.max": "$CORES",
+    "spark.executor.memory": "$EXECUTOR_MEMORY",
+
+    "spark.eventLog.enabled": "$HS_ENABLED",
+    "spark.eventLog.dir": "hdfs:///tmp/logs/history"
+  }
+}
