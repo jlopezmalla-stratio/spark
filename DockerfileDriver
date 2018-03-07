@@ -1,0 +1,5 @@
+FROM qa.stratio.com/mesosphere/spark:1.1.1-2.2.0-hadoop-2.7
+
+ARG VERSION
+
+ENTRYPOINT $SPARK_DRIVER_COMMAND

@@ -379,8 +379,9 @@ private[spark] class MesosClusterScheduler(
     val commandEnv = adjust(desc.command.environment, "SPARK_SUBMIT_OPTS", "")(
       v => s"$v -Dspark.mesos.driver.frameworkId=${getDriverFrameworkID(desc)}"
     )
-
-    val env = desc.conf.getAllWithPrefix("spark.mesos.driverEnv.") ++ commandEnv
+    val driverExecCommand = getDriverCommandValue(desc)
+    val env = desc.conf.getAllWithPrefix("spark.mesos.driverEnv.") ++ commandEnv ++
+      Map("SPARK_DRIVER_COMMAND" -> driverExecCommand)
 
     val envBuilder = Environment.newBuilder()
     env.foreach { case (k, v) =>
@@ -449,7 +450,7 @@ private[spark] class MesosClusterScheduler(
 
   private def buildDriverCommand(desc: MesosDriverDescription): CommandInfo = {
     val builder = CommandInfo.newBuilder()
-    builder.setValue(getDriverCommandValue(desc))
+    val driverExecuteCommand = getDriverCommandValue(desc)
     builder.setEnvironment(getDriverEnvironment(desc))
     builder.addAllUris(getDriverUris(desc).asJava)
     builder.build()
