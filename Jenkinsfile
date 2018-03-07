@@ -17,14 +17,13 @@ hose {
         parallel(DOCKER1: {
                     doDocker(conf: config, dockerfile:"DockerfileDispatcher")
                 },DOCKER2: {
-                    doDocker(conf: config, dockerfile:"DockerfileDriver")
+                    doDocker(conf: config, dockerfile:"DockerfileDriver", image:"spark-stratio-driver")
                 },DEPLOY: {
                     doDeploy(config)
                 }, DOCKER3: {
                      doDocker(conf: config, dockerfile:"DockerfileHistory", image:"spark-stratio-history-server")
         }, failFast: config.FAILFAST)
      }
-
 
     INSTALLSERVICES = [
             ['DCOSCLI':   ['image': 'stratio/dcos-cli:0.4.15',
