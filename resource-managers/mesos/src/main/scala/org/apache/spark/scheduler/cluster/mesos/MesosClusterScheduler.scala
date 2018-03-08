@@ -456,6 +456,7 @@ private[spark] class MesosClusterScheduler(
     val builder = CommandInfo.newBuilder()
     builder.setEnvironment(getDriverEnvironment(desc))
     builder.addAllUris(getDriverUris(desc).asJava)
+    builder.setShell(false)
     builder.build()
   }
 
