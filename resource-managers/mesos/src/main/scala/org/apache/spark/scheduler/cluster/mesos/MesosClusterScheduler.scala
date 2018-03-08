@@ -391,7 +391,10 @@ private[spark] class MesosClusterScheduler(
       envBuilder.addVariables(Variable.newBuilder()
         .setName("SPARK_VIRTUAL_USER_NETWORK").setValue("true"))
     }
-    envBuilder.getVariablesList.foreach(e => println(s"${e.getName}: ${e.getValue}"))
+    envBuilder.getVariablesList.toArray.foreach(e => {
+      val environment: Variable = e.asInstanceOf[Variable]
+      println(s"${environment.getName}: ${environment.getValue}")
+    } )
     envBuilder.build()
   }
 
