@@ -422,7 +422,7 @@ private[spark] class MesosClusterScheduler(
     val executable = if (executorUri.isDefined) {
       // Application jar is automatically downloaded in the mounted sandbox by Mesos,
       // and the path to the mounted volume is stored in $MESOS_SANDBOX env variable.
-      ("./bin/spark-submit", "$MESOS_SANDBOX")
+      ("./bin/spark-submit", "\"$MESOS_SANDBOX\"")
     } else if (executorUri.isDefined) {
       val folderBasename = executorUri.get.split('/').last.split('.').head
 
