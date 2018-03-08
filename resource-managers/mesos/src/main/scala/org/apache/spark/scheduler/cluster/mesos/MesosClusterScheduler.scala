@@ -391,6 +391,7 @@ private[spark] class MesosClusterScheduler(
       envBuilder.addVariables(Variable.newBuilder()
         .setName("SPARK_VIRTUAL_USER_NETWORK").setValue("true"))
     }
+    envBuilder.getVariablesList.foreach(e => println(s"${e.getName}: ${e.getValue}"))
     envBuilder.build()
   }
 
@@ -450,7 +451,6 @@ private[spark] class MesosClusterScheduler(
 
   private def buildDriverCommand(desc: MesosDriverDescription): CommandInfo = {
     val builder = CommandInfo.newBuilder()
-    val driverExecuteCommand = getDriverCommandValue(desc)
     builder.setEnvironment(getDriverEnvironment(desc))
     builder.addAllUris(getDriverUris(desc).asJava)
     builder.build()
