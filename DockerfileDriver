@@ -14,7 +14,7 @@ RUN apt-get purge -y java-\* && \
     mv /opt/sds/dist /opt/spark/dist && \
     chmod -R 777 /opt/spark/dist/ && \
     rm -rf /opt/spark/bak && \
-    chmod +x /sbin/init.sh && \
-    chmod +x /etc/service/spark/run
+    chmod +x /sbin/driver.sh && \
+    chmod -R 777 /sbin/driver.sh
 
 ENTRYPOINT /sbin/driver.sh
