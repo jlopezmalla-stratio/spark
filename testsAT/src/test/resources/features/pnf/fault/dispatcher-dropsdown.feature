@@ -1,5 +1,5 @@
 @rest
-Feature: [Stability test] Dispatcher Dropdowns
+Feature: [Fault Tolerance test] Dispatcher Dropdowns
 
   Background:
 

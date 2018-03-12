@@ -1,5 +1,5 @@
 @rest
-Feature: [Stability test] Executor Dropdowns
+Feature: [Fault Tolerance test] Executor Dropdowns
 
   Background:
 

@@ -8,6 +8,7 @@
             <run>
                 <include name="FT_SSD_001_ExecutorDropDown"/>
                 <include name="FT_SSD_002_DispatcherDropDown"/>
+                <include name="FT_SSD_003_DriverSuperviseFalse"/>
             </run>
         </groups>
 
