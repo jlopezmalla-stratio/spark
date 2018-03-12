@@ -7,6 +7,7 @@
         <groups>
             <run>
                 <include name="FT_SSD_001_ExecutorDropDown"/>
+                <include name="FT_SSD_002_DispatcherDropDown"/>
             </run>
         </groups>
 

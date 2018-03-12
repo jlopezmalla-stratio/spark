@@ -15,7 +15,7 @@ public class FT_SSD_001_ExecutorDropDown_IT extends BaseTest {
     }
 
     @Test(enabled = true, groups = {"FT_SSD_001_ExecutorDropDown"})
-    public void kafkaCoverage() throws Exception {
+    public void executorDropDownCoverage() throws Exception {
         new CucumberRunner(this.getClass()).runCukes();
     }
 }
