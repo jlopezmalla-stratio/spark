@@ -1,6 +1,6 @@
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
 
-<suite name="Full TestsAT in Nightlies" thread-count="1" preserve-order="true">
+<suite name="Full Performance tests" thread-count="1" preserve-order="true">
 
     <test name="performance" preserve-order="true">
         <groups>

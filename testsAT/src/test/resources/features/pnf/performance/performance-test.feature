@@ -1,5 +1,5 @@
 @rest
-Feature: [Spark HDFS Coverage] HDFS Coverage tests
+Feature: [Spark Performance Tests] Spark performance tests
 
   Background:
     #Show parameters of execution
