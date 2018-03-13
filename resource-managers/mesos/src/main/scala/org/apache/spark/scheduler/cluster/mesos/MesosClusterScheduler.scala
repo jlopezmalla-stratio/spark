@@ -415,14 +415,14 @@ private[spark] class MesosClusterScheduler(
     val dockerDefined = desc.conf.contains("spark.mesos.executor.docker.image")
     val executorUri = getDriverExecutorURI(desc)
     // Gets the path to run spark-submit, and the path to the Mesos sandbox.
-    val sandboxPath = if (dockerDefined) "$MESOS_SANDBOX"
+    val sandboxPath = if (dockerDefined) "/mnt/mesos/sandbox"
     else if (executorUri.isDefined)   ".."
     else "."
 
     val executable = if (executorUri.isDefined) {
       // Application jar is automatically downloaded in the mounted sandbox by Mesos,
       // and the path to the mounted volume is stored in $MESOS_SANDBOX env variable.
-      ("./bin/spark-submit", "\"$MESOS_SANDBOX\"")
+      ("./bin/spark-submit", "/mnt/mesos/sandbox")
     } else if (executorUri.isDefined) {
       val folderBasename = executorUri.get.split('/').last.split('.').head
 
