@@ -1,0 +1,20 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="Fault Tolerance Tests" thread-count="1" preserve-order="true">
+
+    <!-- First we launch the test that will don't touch calico networks-->
+    <test name="fault_tolerance_set_withouth_managing_calico" preserve-order="true">
+        <groups>
+            <run>
+                <include name="FT_SSD_001_ExecutorDropDown"/>
+                <include name="FT_SSD_002_DispatcherDropDown"/>
+                <include name="FT_SSD_003_DriverSuperviseFalse"/>
+            </run>
+        </groups>
+
+        <packages>
+            <package name="com.stratio.pnf.fault.*" />
+        </packages>
+    </test>
+
+</suite>

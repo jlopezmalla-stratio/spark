@@ -16,7 +16,11 @@
 */
 package org.apache.spark.security
 
+import scala.util.{Failure, Success, Try}
+
 import org.apache.spark.internal.Logging
+
+
 
 object VaultHelper extends Logging {
 
@@ -25,164 +29,327 @@ object VaultHelper extends Logging {
     " \"secret_id\" : \"_replace_secret_\"}"
 
   def getTokenFromAppRole(roleId: String,
-                          secretId: String): String = {
+                          secretId: String): Try[String] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/auth/approle/login"
     logDebug(s"Requesting login from app and role: $requestUrl")
+
     val replace: String = jsonRoleSecretTemplate.replace("_replace_role_", roleId)
       .replace("_replace_secret_", secretId)
     logDebug(s"getting secret: $secretId and role: $roleId")
+
     logDebug(s"generated JSON: $replace")
     val jsonAppRole = replace
-    HTTPHelper.executePost(requestUrl, "auth",
-      None, Some(jsonAppRole))("client_token").asInstanceOf[String]
+
+    HTTPHelper.executePost(
+      requestUrl,
+      "auth",
+      None,
+      Some(jsonAppRole)
+    ).map(_("client_token").asInstanceOf[String])
   }
 
   def loadCas: Unit = {
     if (ConfigSecurity.vaultURI.isDefined) {
-      val (caFileName, caPass) = getAllCaAndPassword
+
+      val (caFileName, caPass) = getAllCaAndPassword.get
+      log.debug("Retrieved correctly CAs and passwords from vault")
+
       HTTPHelper.secureClient =
         Some(HTTPHelper.generateSecureClient(caFileName, caPass))
+
     }
   }
 
-  private def getAllCaAndPassword: (String, String) = {
-    val cas = getAllCas
-    val caPass = getCAPass
-    (SSLConfig.generateTrustStore("ca-trust", cas, caPass), caPass)
-  }
+  private def getAllCaAndPassword: Try[(String, String)] =
+    (
+      for {
+        cas <- getAllCas
+        caPass <- getCAPass
+      } yield {
 
-  private[security] def getCAPass: String = {
+        (SSLConfig.generateTrustStore("ca-trust", cas, caPass), caPass)
+
+      }) recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving CAs/passwords from vault", e))
+    }
+
+
+  private[security] def getCAPass: Try[String] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/passwords/?list=true"
     logDebug(s"Requesting ca-trust certificates passwords list from Vault: $requestUrl")
-    val passPath = HTTPHelper.executeGet(requestUrl, "data",
-      Some(Seq(("X-Vault-Token",
-        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]].head
 
-    val requestPassUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/" +
-      s"passwords/${passPath.replaceAll("/", "")}/keystore"
-    logDebug(s"Requesting ca Pass from Vault: $requestPassUrl")
-    HTTPHelper.executeGet(requestPassUrl, "data",
-      Some(Seq(("X-Vault-Token",
-        ConfigSecurity.vaultToken.get))))(s"pass").asInstanceOf[String]
+      HTTPHelper.executeGet(
+        requestUrl,
+        "data",
+        Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+      ).flatMap{ listResponse =>
+
+        val passPath = listResponse("keys").asInstanceOf[List[String]].head
+        val requestPassUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/" +
+          s"passwords/${passPath.replaceAll("/", "")}/keystore"
+
+        logDebug(s"Requesting ca Pass from Vault: $requestPassUrl")
+
+        HTTPHelper.executeGet(
+          requestPassUrl,
+          "data", Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+        ).map { passResponse =>
+          passResponse(s"pass").asInstanceOf[String]
+        }
+      } recoverWith {
+        case e: Exception =>
+          Failure(new Exception("Error retrieving CA password from Vault", e))
+      }
   }
 
-  def getRoleIdFromVault(role: String): String = {
+  def getRoleIdFromVault(role: String): Try[String] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/auth/approle/role/$role/role-id"
-
     logDebug(s"Requesting Role ID from Vault: $requestUrl")
-    HTTPHelper.executeGet(requestUrl, "data",
-      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))("role_id").asInstanceOf[String]
+
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving Role ID from Vault", e))
+
+    }.map(_("role_id").asInstanceOf[String])
   }
 
-  def getSecretIdFromVault(role: String): String = {
+  def getSecretIdFromVault(role: String): Try[String] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/auth/approle/role/$role/secret-id"
-
     logDebug(s"Requesting Secret ID from Vault: $requestUrl")
-    HTTPHelper.executePost(requestUrl, "data",
-      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))("secret_id").asInstanceOf[String]
+
+    HTTPHelper.executePost(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving Secret ID from Vault", e))
+
+    }.map(_("secret_id").asInstanceOf[String])
   }
 
-  def getTemporalToken: String = {
+  def getTemporalToken: Try[String] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/sys/wrapping/wrap"
     logDebug(s"Requesting temporal token: $requestUrl")
 
     val jsonToken = jsonTempTokenTemplate.replace("_replace_", ConfigSecurity.vaultToken.get)
 
-    HTTPHelper.executePost(requestUrl, "wrap_info",
-      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get),
-        ("X-Vault-Wrap-TTL", sys.env.get("VAULT_WRAP_TTL")
-        .getOrElse("2000")))), Some(jsonToken))("token").asInstanceOf[String]
+    HTTPHelper.executePost(
+      requestUrl,
+      "wrap_info",
+      Some(
+        Seq(
+          ("X-Vault-Token", ConfigSecurity.vaultToken.get),
+          ("X-Vault-Wrap-TTL", sys.env.getOrElse("VAULT_WRAP_TTL", "2000"))
+        )
+      ),
+      Some(jsonToken)
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving temporal token from Vault", e))
+
+    }.map(_ ("token").asInstanceOf[String])
   }
 
-  def getKeytabPrincipalFromVault(vaultPath: String): (String, String) = {
+  def getKeytabPrincipalFromVault(vaultPath: String): Try[(String, String)] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/$vaultPath"
     logDebug(s"Requesting Keytab and principal: $requestUrl")
-    val data = HTTPHelper.executeGet(requestUrl, "data", Some(Seq(("X-Vault-Token",
-      ConfigSecurity.vaultToken.get))))
-    val keytab64 = data.find(_._1.contains("keytab")).get._2.asInstanceOf[String]
-    val principal = data.find(_._1.contains("principal")).get._2.asInstanceOf[String]
-    (keytab64, principal)
+
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving keytab and principal from Vault", e))
+
+    }.map { vaultResponse =>
+
+      val keytab64 = vaultResponse.find(_._1.contains("keytab")).get._2.asInstanceOf[String]
+      val principal = vaultResponse.find(_._1.contains("principal")).get._2.asInstanceOf[String]
+      (keytab64, principal)
+
+    }
   }
 
-  def getPassPrincipalFromVault(vaultPath: String): (String, String) = {
+  def getPassPrincipalFromVault(vaultPath: String): Try[(String, String)] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/$vaultPath"
     logDebug(s"Requesting user and pass: $requestUrl")
-    val data = HTTPHelper.executeGet(requestUrl, "data", Some(Seq(("X-Vault-Token",
-      ConfigSecurity.vaultToken.get))))
-    val pass = data.find(_._1.contains("pass")).get._2.asInstanceOf[String]
-    val principal = data.find(_._1.contains("user")).get._2.asInstanceOf[String]
-    (pass, principal)
+
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving user and password from vault", e))
+
+    }.map { vaultResponse =>
+
+      val pass = vaultResponse.find(_._1.contains("pass")).get._2.asInstanceOf[String]
+      val principal = vaultResponse.find(_._1.contains("user")).get._2.asInstanceOf[String]
+      (pass, principal)
+
+    }
   }
 
-  def getTrustStore(certVaultPath: String): String = {
+  def getTrustStore(certVaultPath: String): Try[String] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/$certVaultPath"
     val truststoreVaultPath = s"$requestUrl"
-
     logDebug(s"Requesting truststore: $truststoreVaultPath")
-    val data = HTTPHelper.executeGet(requestUrl,
-      "data", Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))
-    val trustStore = data.find(_._1.endsWith("_crt")).get._2.asInstanceOf[String]
-    trustStore
+
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving truststore from Vault", e))
+
+    }.map{ vaultResponse =>
+      vaultResponse.find(_._1.endsWith("_crt")).get._2.asInstanceOf[String]
+    }
   }
 
-  def getCertPassForAppFromVault(appPassVaulPath: String): String = {
+  def getCertPassForAppFromVault(appPassVaulPath: String): Try[String] = {
+
     logDebug(s"Requesting Cert Pass For App: $appPassVaulPath")
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/$appPassVaulPath"
-    HTTPHelper.executeGet(requestUrl,
-      "data", Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
-    )("pass").asInstanceOf[String]
+
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving certificate password from vault", e))
+
+    }.map(_("pass").asInstanceOf[String])
   }
 
-  def getCertKeyForAppFromVault(vaultPath: String, certName: String): (String, String) = {
-    logDebug(s"Requesting specific cert key for App at: $vaultPath")
+  def getCertKeyForAppFromVault(
+                                 vaultPath: String,
+                                 certName: Option[String] = None
+                               ): Try[(String, String)] = {
+
+    logDebug(s"Retrieving certificate from path: $vaultPath")
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/$vaultPath"
-    val data = HTTPHelper.executeGet(requestUrl,
-      "data", Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))
-    val certs = data(s"${certName}_crt").asInstanceOf[String]
-    val key = data(s"${certName}_key").asInstanceOf[String]
-    (key, certs)
+
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving certificate from Vault", e))
+
+    }.map{ vaultResponse =>
+
+      certName map { certToSelect =>
+        logDebug(s"Selecting certificate selected by user: $certToSelect")
+        val certs = vaultResponse(s"${certName}_crt").asInstanceOf[String]
+        val key = vaultResponse(s"${certName}_key").asInstanceOf[String]
+        (key, certs)
+      } getOrElse {
+        val certs = vaultResponse.find(_._1.endsWith("_crt")).get._2.asInstanceOf[String]
+        val key = vaultResponse.find(_._1.endsWith("_key")).get._2.asInstanceOf[String]
+        (key, certs)
+      }
+
+    }
+
   }
 
-  def getCertKeyForAppFromVault(vaultPath: String): (String, String) = {
-    logDebug(s"Requesting cert key for App from directory at: $vaultPath")
-    val requestUrl = s"${ConfigSecurity.vaultURI.get}/$vaultPath"
-    val data = HTTPHelper.executeGet(requestUrl,
-      "data", Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))
-    val certs = data.find(_._1.endsWith("_crt")).get._2.asInstanceOf[String]
-    val key = data.find(_._1.endsWith("_key")).get._2.asInstanceOf[String]
-    (key, certs)
-  }
+  def getRealToken(vaultTempToken: Option[String]): Try[String] = {
 
-  def getRealToken(vaultTempToken: Option[String]): String = {
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/sys/wrapping/unwrap"
     logDebug(s"Requesting real Token: $requestUrl")
-    HTTPHelper.executePost(requestUrl,
-      "data", Some(Seq(("X-Vault-Token", vaultTempToken.get))))("token").asInstanceOf[String]
+
+    HTTPHelper.executePost(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", vaultTempToken.get)))
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving real token from Vault", e))
+
+    }.map(_("token").asInstanceOf[String])
   }
 
-  def retrieveSecret(secretVaultPath: String, idJSonSecret: String): String = {
+  def retrieveSecret(secretVaultPath: String, idJSonSecret: String): Try[String] = {
+
     logDebug(s"Retriving Secret: $secretVaultPath")
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/$secretVaultPath"
 
-    HTTPHelper.executeGet(requestUrl,
-      "data", Some(Seq(("X-Vault-Token",
-      ConfigSecurity.vaultToken.get))))(idJSonSecret).asInstanceOf[String]
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+    ).recoverWith {
+
+      case e: Exception =>
+        Failure(new Exception("Error retrieving secret from Vault"))
+
+    }.map(_(idJSonSecret).asInstanceOf[String])
   }
 
-  private [security] def getAllCas: String = {
+  private[security] def getAllCas: Try[String] = {
+
     val requestUrl = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/?list=true"
     val requestCA = s"${ConfigSecurity.vaultURI.get}/v1/ca-trust/certificates/"
     logDebug(s"Requesting ca-trust certificates list from Vault: $requestUrl")
-    val keys = HTTPHelper.executeGet(requestUrl, "data",
-      Some(Seq(("X-Vault-Token",
-        ConfigSecurity.vaultToken.get))))("keys").asInstanceOf[List[String]]
 
-    keys.map(key => {
-      logDebug(s"Requesting CAS for $requestCA$key")
-      HTTPHelper.executeGet(s"$requestCA$key",
-        "data",
-        Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get))))(s"${key}_crt")
-        .asInstanceOf[String]
-    }).mkString
+    HTTPHelper.executeGet(
+      requestUrl,
+      "data",
+      Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+    ).map { listCAsResponse =>
+
+      val keys = listCAsResponse("keys").asInstanceOf[List[String]]
+
+      val casRetrieved: List[String] = keys.map { key =>
+        logDebug(s"Requesting CAS for $requestCA$key")
+        HTTPHelper.executeGet(
+          s"$requestCA$key",
+          "data",
+          Some(Seq(("X-Vault-Token", ConfigSecurity.vaultToken.get)))
+        ).map(_ (s"${key}_crt").asInstanceOf[String]).get
+      }
+
+      casRetrieved.mkString
+
+    }.recoverWith {
+      case e: Exception =>
+        Failure(new Exception("Error retrieving All CAs from vault", e))
+    }
   }
 }

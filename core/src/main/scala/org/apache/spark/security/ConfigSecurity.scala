@@ -21,6 +21,7 @@ import scala.util.{Failure, Success, Try}
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
+
 object ConfigSecurity extends Logging {
 
   val secretsFolder: String = sys.env.get("SPARK_DRIVER_SECRET_FOLDER") match {
@@ -39,21 +40,34 @@ object ConfigSecurity extends Logging {
       logInfo("Obtaining vault token using VAULT_TOKEN")
       sys.env.get("VAULT_TOKEN")
     } else if (sys.env.get("VAULT_TEMP_TOKEN").isDefined) {
+
       logInfo("Obtaining vault token using VAULT_TEMP_TOKEN")
-      scala.util.Try {
-        VaultHelper.getRealToken(sys.env.get("VAULT_TEMP_TOKEN"))
-      } match {
+      val token = VaultHelper.getRealToken(sys.env.get("VAULT_TEMP_TOKEN"))
+
+      token match {
         case Success(token) => Option(token)
         case Failure(e) =>
           logWarning("An error ocurred while trying to obtain" +
             " Application Token from a temporal token", e)
           None
       }
+
     } else if (sys.env.get("VAULT_ROLE_ID").isDefined && sys.env.get("VAULT_SECRET_ID").isDefined) {
-     logInfo("Obtaining vault token using ROLE_ID and SECRET_ID")
-      Option(VaultHelper.getTokenFromAppRole(
+
+      logInfo("Obtaining vault token using ROLE_ID and SECRET_ID")
+      val tokenRole = VaultHelper.getTokenFromAppRole(
         sys.env("VAULT_ROLE_ID"),
-        sys.env("VAULT_SECRET_ID")))
+        sys.env("VAULT_SECRET_ID")
+      )
+
+      tokenRole match {
+        case Success(token) => Option(token)
+        case Failure(e) =>
+          logWarning("An error ocurred while trying to obtain" +
+            " Application Token from a ROLE_ID and SECRET_ID", e)
+          None
+      }
+
     } else {
       logInfo("No Vault token variables provided. Skipping Vault token retrieving")
       None
