@@ -48,54 +48,48 @@ trait Logging {
     }
     log_
   }
-
-  private def formatMsgInJson(msg: => String,
-                                throwable: Option[Throwable] = None): String =
-    throwable.map{ th =>
-      raw"""{"@message": "$msg", "@data":"${ExceptionUtils.getFullStackTrace(th)}"}"""
-    } getOrElse
-      raw"""{"@message": "$msg"}"""
+  
 
   // Log methods that take only a String
   protected def logInfo(msg: => String) {
-    if (log.isInfoEnabled) log.info(formatMsgInJson(msg))
+    if (log.isInfoEnabled) log.info(msg)
   }
 
   protected def logDebug(msg: => String) {
-    if (log.isDebugEnabled) log.debug(formatMsgInJson(msg))
+    if (log.isDebugEnabled) log.debug(msg)
   }
 
   protected def logTrace(msg: => String) {
-    if (log.isTraceEnabled) log.trace(formatMsgInJson(msg))
+    if (log.isTraceEnabled) log.trace(msg)
   }
 
   protected def logWarning(msg: => String) {
-    if (log.isWarnEnabled) log.warn(formatMsgInJson(msg))
+    if (log.isWarnEnabled) log.warn(msg)
   }
 
   protected def logError(msg: => String) {
-    if (log.isErrorEnabled) log.error(formatMsgInJson(msg))
+    if (log.isErrorEnabled) log.error(msg)
   }
 
   // Log methods that take Throwables (Exceptions/Errors) too
   protected def logInfo(msg: => String, throwable: Throwable) {
-    if (log.isInfoEnabled) log.info(formatMsgInJson(msg, Some(throwable)))
+    if (log.isInfoEnabled) log.info(msg, throwable)
   }
 
   protected def logDebug(msg: => String, throwable: Throwable) {
-    if (log.isDebugEnabled) log.debug(formatMsgInJson(msg, Some(throwable)))
+    if (log.isDebugEnabled) log.debug(msg, throwable)
   }
 
   protected def logTrace(msg: => String, throwable: Throwable) {
-    if (log.isTraceEnabled) log.trace(formatMsgInJson(msg, Some(throwable)))
+    if (log.isTraceEnabled) log.trace(msg, throwable)
   }
 
   protected def logWarning(msg: => String, throwable: Throwable) {
-    if (log.isWarnEnabled) log.warn(formatMsgInJson(msg, Some(throwable)))
+    if (log.isWarnEnabled) log.warn(msg, throwable)
   }
 
   protected def logError(msg: => String, throwable: Throwable) {
-    if (log.isErrorEnabled) log.error(formatMsgInJson(msg, Some(throwable)))
+    if (log.isErrorEnabled) log.error(msg, throwable)
   }
 
   protected def isTraceEnabled(): Boolean = {
