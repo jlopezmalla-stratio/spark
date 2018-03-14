@@ -19,8 +19,12 @@ package org.apache.spark.security
 object MesosConfig {
   def prepareEnvironment(options: Map[String, String]): Map[String, String] = {
     options.filter(_._1.endsWith("MESOS_VAULT_PATH")).flatMap{case (_, path) =>
-      val (pass, user) = VaultHelper.getPassPrincipalFromVault(path)
+
+      val (pass, user) =
+        VaultHelper.getPassPrincipalFromVault(path).get
+
       Seq(("spark.mesos.principal", user), ("spark.mesos.secret", pass))
+
     }
   }
 }

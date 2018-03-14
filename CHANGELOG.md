@@ -8,6 +8,7 @@
 * Possibility of specifying the name of the certificate within a directory with multiple certificates
 * Add support to multiples CAs
 * Added performance tests PNF
+* Add messages for errors in Vault
 
 ## 2.2.0.5 (upcoming)
 

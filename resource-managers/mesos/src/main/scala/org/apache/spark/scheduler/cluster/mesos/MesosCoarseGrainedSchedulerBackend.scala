@@ -25,10 +25,8 @@ import java.util.concurrent.locks.ReentrantLock
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Future
-
 import org.apache.mesos.Protos.{TaskInfo => MesosTaskInfo, _}
 import org.apache.mesos.SchedulerDriver
-
 import org.apache.spark.{SecurityManager, SparkContext, SparkException, TaskState}
 import org.apache.spark.deploy.mesos.config._
 import org.apache.spark.network.netty.SparkTransportConf
@@ -38,6 +36,7 @@ import org.apache.spark.scheduler.{SlaveLost, TaskSchedulerImpl}
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.util.Utils
+
 
 /**
  * A SchedulerBackend that runs tasks on Mesos, but uses "coarse-grained" tasks, where it holds
@@ -230,7 +229,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
     if (ConfigSecurity.vaultToken.isDefined && ConfigSecurity.vaultURI.isDefined) {
       environment.addVariables(Environment.Variable.newBuilder()
         .setName("VAULT_TEMP_TOKEN")
-        .setValue(VaultHelper.getTemporalToken)
+        .setValue(VaultHelper.getTemporalToken.get)
         .build())
       environment.addVariables(Environment.Variable.newBuilder()
         .setName("VAULT_PROTOCOL")

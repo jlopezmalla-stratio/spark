@@ -22,19 +22,23 @@ import javax.xml.bind.DatatypeConverter
 
 import org.apache.spark.internal.Logging
 
+
 object KerberosConfig extends Logging{
 
   def prepareEnviroment(options: Map[String, String]): Map[String, String] = {
-    val kerberosVaultPath = options.get("KERBEROS_VAULT_PATH")
-    if(kerberosVaultPath.isDefined) {
+
+    options.get("KERBEROS_VAULT_PATH") map { kerberosVaultPath =>
+
       val (keytab64, principal) =
-        VaultHelper.getKeytabPrincipalFromVault(kerberosVaultPath.get)
+        VaultHelper.getKeytabPrincipalFromVault(kerberosVaultPath).get
+
       val keytabPath = getKeytabPrincipal(keytab64, principal)
       Map("principal" -> principal, "keytabPath" -> keytabPath)
-    } else {
+
+    } getOrElse {
       logInfo(s"tying to get ssl secrets from vault for Kerberos but not found vault path," +
         s" skipping")
-      Map[String, String]()
+      Map.empty
     }
   }
 

@@ -24,7 +24,6 @@ import java.util.zip.Adler32
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.util.Random
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.io.CompressionCodec
@@ -92,7 +91,7 @@ private[spark] class TorrentSecretBroadcast(secretVaultPath: String,
   private var checksums: Array[Int] = _
 
   override protected def getValue() = {
-    VaultHelper.retrieveSecret(secretVaultPath, idJson)
+    VaultHelper.retrieveSecret(secretVaultPath, idJson).get
   }
 
   private def calcChecksum(block: ByteBuffer): Int = {

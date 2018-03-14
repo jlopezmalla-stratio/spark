@@ -34,6 +34,7 @@ import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.util.Utils
 
+
 /**
  * Tracks the current state of a Mesos Task that runs a Spark driver.
  * @param driverDescription Submitted driver description from
@@ -712,8 +713,10 @@ private[spark] class MesosClusterScheduler(
           {
             val vaultURI = ConfigSecurity.vaultURI.get
             val role = sparkProperties("spark.secret.vault.role")
-            val driverSecretId = VaultHelper.getSecretIdFromVault(role)
-            val driverRoleId = VaultHelper.getRoleIdFromVault(role)
+            val driverSecretId =
+              VaultHelper.getSecretIdFromVault(role).get
+            val driverRoleId =
+              VaultHelper.getRoleIdFromVault(role).get
             sparkProperties = sparkProperties.updated("spark.secret.roleID", driverRoleId)
               .updated("spark.secret.secretID", driverSecretId)
           }
