@@ -17,4 +17,8 @@ RUN apt-get purge -y java-\* && \
     chmod +x /sbin/driver.sh && \
     chmod -R 777 /sbin/driver.sh
 
+COPY docker/driver/spark-env.sh /opt/spark/dist/conf/spark-env.sh
+
+RUN chmod +x /opt/spark/dist/conf/spark-env.sh
+
 ENTRYPOINT /sbin/driver.sh
