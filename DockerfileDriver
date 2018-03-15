@@ -21,4 +21,4 @@ COPY docker/driver/spark-env.sh /opt/spark/dist/conf/spark-env.sh
 
 RUN chmod +x /opt/spark/dist/conf/spark-env.sh
 
-ENTRYPOINT /sbin/driver.sh
+ENTRYPOINT ["/bin/bash", "-c", $SPARK_DRIVER_COMMAND]
