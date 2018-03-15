@@ -449,7 +449,7 @@ private[spark] class MesosClusterScheduler(
     val primaryResource = new File(sandboxPath, desc.jarUrl.split("/").last).toString()
     val appArguments = desc.command.arguments.mkString(" ")
 
-    s"$executable $cmdOptions $primaryResource $appArguments"
+    s"$executable $cmdOptions $primaryResource $appArguments".replaceAll("\"", "")
   }
 
   private def buildDriverCommand(desc: MesosDriverDescription): CommandInfo = {
