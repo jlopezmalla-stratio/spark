@@ -580,6 +580,14 @@ class SparkContext(config: SparkConf) extends Logging {
       logInfo("Invoking stop() from shutdown hook")
       stop()
     }
+
+    logInfo("Adding signal") // force eager creation of logger
+    Seq("TERM").foreach { sig =>
+      SignalUtils.register(sig) {
+        stop()
+        false
+      }
+    }
   } catch {
     case NonFatal(e) =>
       logError("Error initializing SparkContext.", e)

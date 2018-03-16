@@ -1,0 +1,24 @@
+FROM qa.stratio.com/mesosphere/spark:1.1.1-2.2.0-hadoop-2.7
+
+ARG VERSION
+
+COPY dist /opt/sds/dist
+COPY docker/driver/driver.sh /sbin/driver.sh
+RUN apt-get purge -y java-\* && \
+
+sudo add-apt-repository -y ppa:openjdk-r/ppa && \
+    apt-get update && \
+    apt-get install -y openjdk-8-jdk && \
+    apt-get purge -y krb5-config && \
+    mv /opt/spark/dist /opt/spark/bak && \
+    mv /opt/sds/dist /opt/spark/dist && \
+    chmod -R 777 /opt/spark/dist/ && \
+    rm -rf /opt/spark/bak && \
+    chmod +x /sbin/driver.sh && \
+    chmod -R 777 /sbin/driver.sh
+
+COPY docker/driver/spark-env.sh /opt/spark/dist/conf/spark-env.sh
+
+RUN chmod +x /opt/spark/dist/conf/spark-env.sh
+
+ENTRYPOINT ["/bin/bash","-c",$SPARK_DRIVER_COMMAND]

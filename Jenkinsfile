@@ -16,9 +16,11 @@ hose {
         doUT(config)
         parallel(DOCKER1: {
                     doDocker(conf: config, dockerfile:"DockerfileDispatcher")
+                },DOCKER2: {
+                    doDocker(conf: config, dockerfile:"DockerfileDriver", image:"spark-stratio-driver")
                 }, DEPLOY: {
                     doDeploy(config)
-                }, DOCKER2: {
+                }, DOCKER3: {
                      doDocker(conf: config, dockerfile:"DockerfileHistory", image:"spark-stratio-history-server")
         }, failFast: config.FAILFAST)
      }
