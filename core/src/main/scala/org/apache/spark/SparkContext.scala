@@ -581,7 +581,7 @@ class SparkContext(config: SparkConf) extends Logging {
       stop()
     }
 
-    logInfo("Adding signal") // force eager creation of logger
+    logDebug("Adding signal") // force eager creation of logger
     Seq("TERM").foreach { sig =>
       SignalUtils.register(sig) {
         stop()
