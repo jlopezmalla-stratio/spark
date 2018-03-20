@@ -158,7 +158,7 @@ public class JavaMapWithStateSuite extends LocalJavaStreamingContext implements 
     BatchCounter batchCounter = new BatchCounter(ssc.ssc());
     ssc.start();
     ((ManualClock) ssc.ssc().scheduler().clock())
-        .advance(ssc.ssc().progressListener().batchDuration() * numBatches + 1);
+        .advance(windowDuration.milliseconds() * numBatches + 1);
     batchCounter.waitUntilBatchesCompleted(numBatches, 10000);
 
     Assert.assertEquals(expectedOutputs, collectedOutputs);

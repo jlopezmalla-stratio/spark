@@ -188,6 +188,7 @@ private[history] class ApplicationCache(
       updated = time(metrics.updateProbeTimer) {
         entry.updateProbe()
       }
+
       if (updated) {
         logDebug(s"refreshing $cacheKey")
         metrics.updateTriggeredCount.inc()

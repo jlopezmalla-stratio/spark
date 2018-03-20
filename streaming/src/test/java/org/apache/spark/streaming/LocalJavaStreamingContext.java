@@ -26,13 +26,15 @@ public abstract class LocalJavaStreamingContext {
 
     protected transient JavaStreamingContext ssc;
 
+    public Duration windowDuration = new Duration(1000);
+
     @Before
     public void setUp() {
         SparkConf conf = new SparkConf()
             .setMaster("local[2]")
             .setAppName("test")
             .set("spark.streaming.clock", "org.apache.spark.util.ManualClock");
-        ssc = new JavaStreamingContext(conf, new Duration(1000));
+        ssc = new JavaStreamingContext(conf, windowDuration);
         ssc.checkpoint("checkpoint");
     }
 

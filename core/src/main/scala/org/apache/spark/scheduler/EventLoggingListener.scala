@@ -132,6 +132,7 @@ private[spark] class EventLoggingListener(
 
   /** Log the event as JSON. */
   private def logEvent(event: SparkListenerEvent, flushLogger: Boolean = false) {
+
     val eventJson = JsonProtocol.sparkEventToJson(event)
     // scalastyle:off println
     writer.foreach(_.println(compact(render(eventJson))))
@@ -139,6 +140,15 @@ private[spark] class EventLoggingListener(
     if (flushLogger) {
       writer.foreach(_.flush())
       hadoopDataStream.foreach(_.hflush())
+      // Update the timestamp of the file
+      import org.apache.hadoop.hdfs.DFSOutputStream
+      import org.apache.hadoop.hdfs.client.HdfsDataOutputStream.SyncFlag
+      import java.util
+      hadoopDataStream.foreach(
+        _.getWrappedStream.asInstanceOf[DFSOutputStream].hsync(
+          util.EnumSet.of(SyncFlag.UPDATE_LENGTH)
+        )
+      )
     }
     if (testing) {
       loggedEvents += eventJson
@@ -221,6 +231,7 @@ private[spark] class EventLoggingListener(
       logEvent(event, flushLogger = true)
     }
   }
+
 
   /**
    * Stop logging events. The event log file will be renamed so that it loses the

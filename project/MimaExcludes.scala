@@ -110,6 +110,10 @@ object MimaExcludes {
       ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.storage.StorageStatus.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.status.api.v1.RDDDataDistribution.this")
     )
+  ++ Seq(
+    // SPARK-12977
+    ProblemFilters.exclude[MissingMethodProblem]("org.apache.spark.streaming.Time.millis$1"),
+    ProblemFilters.exclude[AbstractClassProblem]("org.apache.spark.streaming.scheduler.StreamingListenerBus")
 
   // Exclude rules for 2.1.x
   lazy val v21excludes = v20excludes ++ {

@@ -777,8 +777,10 @@ class CheckpointSuite extends TestSuiteBase with DStreamCheckpointTester
       mappedDStream.foreachRDD(rdd => rdd.count())
       mappedDStream.foreachRDD(rdd => rdd.count())
       assert(checkpointData.restoredTimes === 0)
-      val batchDurationMillis = ssc.progressListener.batchDuration
-      generateOutput(ssc, Time(batchDurationMillis * 3), checkpointDir, stopSparkContext = true)
+      generateOutput(
+        ssc,
+        Time(batchDuration.milliseconds * 3), checkpointDir,
+        stopSparkContext = true)
       assert(checkpointData.restoredTimes === 0)
     }
     logInfo("*********** RESTARTING ************")
