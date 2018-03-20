@@ -2,7 +2,6 @@ FROM qa.stratio.com/mesosphere/spark:1.1.1-2.2.0-hadoop-2.7
 
 ARG VERSION
 
-
 COPY dist /opt/sds/dist
 COPY docker/driver/driver.sh /sbin/driver.sh
 RUN apt-get purge -y java-\* && \
