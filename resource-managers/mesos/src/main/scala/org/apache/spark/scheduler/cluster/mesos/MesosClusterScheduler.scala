@@ -391,10 +391,6 @@ private[spark] class MesosClusterScheduler(
       envBuilder.addVariables(Variable.newBuilder()
         .setName("SPARK_VIRTUAL_USER_NETWORK").setValue("true"))
     }
-    envBuilder.getVariablesList.toArray.foreach(e => {
-      val environment: Variable = e.asInstanceOf[Variable]
-      println(s"${environment.getName}: ${environment.getValue}")
-    } )
     envBuilder.build()
   }
 
@@ -449,6 +445,7 @@ private[spark] class MesosClusterScheduler(
     val primaryResource = new File(sandboxPath, desc.jarUrl.split("/").last).toString()
     val appArguments = desc.command.arguments.mkString(" ")
 
+    //TODO: replace this behaviour, some properties could have doble quotes
     s"$executable $cmdOptions $primaryResource $appArguments".replaceAll("\"", "")
   }
 
