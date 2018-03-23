@@ -12,9 +12,7 @@ sudo add-apt-repository -y ppa:openjdk-r/ppa && \
     mv /opt/spark/dist /opt/spark/bak && \
     mv /opt/sds/dist /opt/spark/dist && \
     chmod -R 777 /opt/spark/dist/ && \
-    rm -rf /opt/spark/bak && \
-    chmod +x /sbin/driver.sh && \
-    chmod -R 777 /sbin/driver.sh
+    rm -rf /opt/spark/bak
 
 COPY docker/driver/spark-env.sh /opt/spark/dist/conf/spark-env.sh
 
