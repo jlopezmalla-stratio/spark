@@ -3,7 +3,6 @@ FROM qa.stratio.com/mesosphere/spark:1.1.1-2.2.0-hadoop-2.7
 ARG VERSION
 
 COPY dist /opt/sds/dist
-
 RUN apt-get purge -y java-\* && \
 
 sudo add-apt-repository -y ppa:openjdk-r/ppa && \
