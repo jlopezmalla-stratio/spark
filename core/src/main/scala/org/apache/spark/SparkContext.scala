@@ -581,13 +581,13 @@ class SparkContext(config: SparkConf) extends Logging {
       stop()
     }
 
-//    logDebug("Adding signal") // force eager creation of logger
-//    Seq("TERM").foreach { sig =>
-//      SignalUtils.register(sig) {
-//        stop()
-//        false
-//      }
-//    }
+    logDebug("Adding signal") // force eager creation of logger
+    Seq("TERM").foreach { sig =>
+      SignalUtils.register(sig) {
+        stop()
+        false
+      }
+    }
   } catch {
     case NonFatal(e) =>
       logError("Error initializing SparkContext.", e)
