@@ -116,7 +116,7 @@ private[streaming] class StreamingHistoryListenerFactory extends SparkHistoryLis
     val streamingListener = new StreamingJobProgressListener(conf)
     listenerBus.addListener(streamingListener)
     val streamingTab = new StreamingTab(streamingListener, sparkUI)
-    streamingTab.attach()
+//    streamingTab.attach()
     List(listenerBus)
   }
 }
