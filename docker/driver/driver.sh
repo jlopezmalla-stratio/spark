@@ -1,3 +1,3 @@
 #!/bin/bash
 
-exec "$SPARK_DRIVER_COMMAND"
+exec $SPARK_DRIVER_COMMAND
