@@ -99,7 +99,7 @@ private[spark] class EventLoggingListener(
   /**
    * Creates the log file in the configured log directory.
    */
-  def start{
+  def start() {
     if (!fileSystem.getFileStatus(new Path(logBaseDir)).isDirectory) {
       throw new IllegalArgumentException(s"Log directory $logBaseDir is not a directory.")
     }
