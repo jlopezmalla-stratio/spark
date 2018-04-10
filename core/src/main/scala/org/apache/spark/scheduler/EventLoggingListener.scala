@@ -163,7 +163,8 @@ private[spark] class EventLoggingListener(
       case event: SparkListenerJobEnd =>
         println(s"event SparkListenerJobEnd: ${event}")
         if (rotate) {
-          println(s"checking size: ${fileSystem.getFileStatus(new Path(logPath)).getLen}" +
+          println(s"checking size: ${fileSystem.getFileStatus(
+            new Path(logPath + IN_PROGRESS)).getLen}" +
             s" >= $rotateSize result " +
             s"${fileSystem.getFileStatus(new Path(logPath)).getLen >= rotateSize}")
           if (fileSystem.getFileStatus(new Path(logPath)).getLen >= rotateSize) {
