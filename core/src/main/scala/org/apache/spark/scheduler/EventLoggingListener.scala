@@ -46,6 +46,9 @@ import org.apache.spark.util.{JsonProtocol, Utils}
  *   spark.eventLog.overwrite - Whether to overwrite any existing files.
  *   spark.eventLog.dir - Path to the directory in which events are logged.
  *   spark.eventLog.buffer.kb - Buffer size to use when writing to output streams
+ *   spark.eventLog.rotate - Event Log rotate activation flag
+ *   spark.eventLog.rotate.size - Maximun size in megabytes of the Event Log if rotate is activate
+ *   spark.eventLog.rotate.num - Maximun size in megabytes of the Event Log if rotate is activate
  */
 private[spark] class EventLoggingListener(
     appId: String,
@@ -65,6 +68,12 @@ private[spark] class EventLoggingListener(
   private val shouldOverwrite = sparkConf.getBoolean("spark.eventLog.overwrite", false)
   private val testing = sparkConf.getBoolean("spark.eventLog.testing", false)
   private val outputBufferSize = sparkConf.getInt("spark.eventLog.buffer.kb", 100) * 1024
+
+  private val rotateSize: Long = sparkConf.getInt("spark.eventLog.rotate.size", 512) * 1048576
+  private val rotateNum = sparkConf.getInt("spark.eventLog.rotate.num", 9)
+  private val rotate = sparkConf.getBoolean("spark.eventLog.rotate", false)
+  private var logFileIndex = 0
+
   private val fileSystem = Utils.getHadoopFileSystem(logBaseDir, hadoopConf)
   private val compressionCodec =
     if (shouldCompress) {
@@ -90,7 +99,7 @@ private[spark] class EventLoggingListener(
   /**
    * Creates the log file in the configured log directory.
    */
-  def start() {
+  def start{
     if (!fileSystem.getFileStatus(new Path(logBaseDir)).isDirectory) {
       throw new IllegalArgumentException(s"Log directory $logBaseDir is not a directory.")
     }
@@ -136,7 +145,7 @@ private[spark] class EventLoggingListener(
     val eventJson = JsonProtocol.sparkEventToJson(event)
     // scalastyle:off println
     writer.foreach(_.println(compact(render(eventJson))))
-    // scalastyle:on println
+
     if (flushLogger) {
       writer.foreach(_.flush())
       hadoopDataStream.foreach(_.hflush())
@@ -149,6 +158,17 @@ private[spark] class EventLoggingListener(
           util.EnumSet.of(SyncFlag.UPDATE_LENGTH)
         )
       )
+    }
+    event match {
+      case event: SparkListenerJobEnd =>
+        if (rotate) {
+          if (fileSystem.getFileStatus(new Path(logPath)).getLen >= rotateSize) {
+            stop()
+            if (logFileIndex > rotateNum) logFileIndex = 1 else logFileIndex += 1
+            start
+          }
+        }
+      case _ =>
     }
     if (testing) {
       loggedEvents += eventJson
@@ -240,10 +260,11 @@ private[spark] class EventLoggingListener(
   def stop(): Unit = {
     writer.foreach(_.close())
 
-    val target = new Path(logPath)
+    val target = new Path(s"${logPath}${if (rotate) s".${logFileIndex}"}")
     if (fileSystem.exists(target)) {
-      if (shouldOverwrite) {
-        logWarning(s"Event log $target already exists. Overwriting...")
+      if (shouldOverwrite || rotate) {
+        logWarning(s"Event log $target already exists" +
+          s"${if (rotate) " and rotate is active"}. Overwriting...")
         if (!fileSystem.delete(target, true)) {
           logWarning(s"Error deleting $target")
         }
