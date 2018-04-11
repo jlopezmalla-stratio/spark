@@ -270,7 +270,7 @@ private[spark] class EventLoggingListener(
   def stop(): Unit = {
     writer.foreach(_.close())
 
-    val target = new Path(s"${logPath}${if (rotate) s".${logFileIndex}"}")
+    val target = new Path(s"${logPath}${if (rotate) s"-${logFileIndex}"}")
     if (fileSystem.exists(target)) {
       if (shouldOverwrite || rotate) {
         logWarning(s"Event log $target already exists" +

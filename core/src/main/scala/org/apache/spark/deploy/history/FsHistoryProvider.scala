@@ -535,8 +535,10 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       }
       newIterator.foreach(addIfAbsent)
       oldIterator.foreach(addIfAbsent)
-
+      println(s"applications before merger: ${applications.map(_._1).mkString("\n")}")
       applications = mergedApps
+      println(s"applications after merger: ${applications.map(_._1).mkString("\n")}")
+
     }
   }
 
@@ -567,9 +569,10 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
             new FsApplicationHistoryInfo(app.id, app.name, toRetain.toList))
         }
       }
+     println(s"applications before cleanLog: ${applications.map(_._1).mkString("\n")}")
 
       applications = appsToRetain
-
+      println(s"applications after merger: ${applications.map(_._1).mkString("\n")}")
       val leftToClean = new mutable.ListBuffer[FsApplicationAttemptInfo]
       attemptsToClean.foreach { attempt =>
         try {
