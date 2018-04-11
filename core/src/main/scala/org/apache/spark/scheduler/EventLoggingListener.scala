@@ -96,6 +96,10 @@ private[spark] class EventLoggingListener(
   // Visible for tests only.
   private[scheduler] val logPath = getLogPath(logBaseDir, appId, appAttemptId, compressionCodecName)
 
+
+  private val workingLogPath =
+    getLogPath(logBaseDir, appId, appAttemptId, compressionCodecName) + IN_PROGRESS
+
   /**
    * Creates the log file in the configured log directory.
    */
@@ -164,10 +168,10 @@ private[spark] class EventLoggingListener(
         println(s"event SparkListenerJobEnd: ${event}")
         if (rotate) {
           println(s"checking size: ${fileSystem.getFileStatus(
-            new Path(logPath + IN_PROGRESS)).getLen}" +
+            new Path(workingLogPath)).getLen}" +
             s" >= $rotateSize result " +
-            s"${fileSystem.getFileStatus(new Path(logPath)).getLen >= rotateSize}")
-          if (fileSystem.getFileStatus(new Path(logPath)).getLen >= rotateSize) {
+            s"${fileSystem.getFileStatus(new Path(workingLogPath)).getLen >= rotateSize}")
+          if (fileSystem.getFileStatus(new Path(workingLogPath)).getLen >= rotateSize) {
             stop()
             println(s"checking index: ${(logFileIndex > rotateNum)}")
             if (logFileIndex > rotateNum) logFileIndex = 1 else logFileIndex += 1
@@ -175,7 +179,6 @@ private[spark] class EventLoggingListener(
           }
         }
       case _ =>
-        println(s"event NOT SparkListenerJobEnd: ${event}")
     }
     if (testing) {
       loggedEvents += eventJson
