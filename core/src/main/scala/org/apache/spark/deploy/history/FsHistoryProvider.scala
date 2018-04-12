@@ -317,6 +317,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       val statusList = Option(fs.listStatus(new Path(logDir))).map(_.toSeq)
         .getOrElse(Seq[FileStatus]())
       // scan for modified applications, replay and merge them
+      println(s"${statusList.map(_.toString).mkString("\n")}")
       val logInfos: Seq[FileStatus] = statusList
         .filter { entry =>
           val prevFileSize = fileToAppInfo.get(entry.getPath()).map{_.fileSize}.getOrElse(0L)
@@ -715,7 +716,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       prevFileSize: Long)(): Boolean = {
     lookup(appId, attemptId) match {
       case None =>
-        logDebug(s"Application Attempt $appId/$attemptId not found")
+        // TODO: CHANGE IT TO DEBUG
+        logInfo(s"Application Attempt $appId/$attemptId not found")
         false
       case Some(latest) =>
         prevFileSize != latest.fileSize
