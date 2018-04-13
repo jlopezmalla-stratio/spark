@@ -19,20 +19,18 @@ package org.apache.spark.deploy.history
 
 import java.io.{FileNotFoundException, IOException, OutputStream}
 import java.util.UUID
-import java.util.concurrent.{Executors, ExecutorService, Future, TimeUnit}
+import java.util.concurrent.{ExecutorService, Executors, Future, TimeUnit}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.mutable
 import scala.xml.Node
-
 import com.google.common.io.ByteStreams
 import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.fs.{FileStatus, Path, PathFilter}
 import org.apache.hadoop.fs.permission.FsAction
 import org.apache.hadoop.hdfs.DistributedFileSystem
 import org.apache.hadoop.hdfs.protocol.HdfsConstants
 import org.apache.hadoop.security.AccessControlException
-
 import org.apache.spark.{SecurityManager, SparkConf, SparkException}
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
@@ -314,10 +312,16 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     try {
       val newLastScanTime = getNewLastScanTime()
       logDebug(s"Scanning $logDir with lastScanTime==$lastScanTime")
-      val statusList = Option(fs.listStatus(new Path(logDir))).map(_.toSeq)
+      val filter = new PathFilter {
+        override def accept(path: Path): Boolean = {
+          val name = path.getName
+          if (name.endsWith(s"${EventLoggingListener.LOG_ROTATE_SUFFIX}")) false else true
+        }
+      }
+
+      val statusList = Option(fs.listStatus(new Path(logDir), filter)).map(_.toSeq)
         .getOrElse(Seq[FileStatus]())
       // scan for modified applications, replay and merge them
-      println(s"${statusList.map(_.toString).mkString("\n")}")
       val logInfos: Seq[FileStatus] = statusList
         .filter { entry =>
           val prevFileSize = fileToAppInfo.get(entry.getPath()).map{_.fileSize}.getOrElse(0L)

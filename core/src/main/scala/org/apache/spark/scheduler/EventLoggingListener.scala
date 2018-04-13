@@ -73,6 +73,7 @@ private[spark] class EventLoggingListener(
   private val rotateNum = sparkConf.getInt("spark.eventLog.rotate.num", 9)
   private val rotate = sparkConf.getBoolean("spark.eventLog.rotate", false)
   private var logFileIndex = 0
+  private var applicationStartEvent: Option[SparkListenerApplicationStart] = None
 
   private val fileSystem = Utils.getHadoopFileSystem(logBaseDir, hadoopConf)
   private val compressionCodec =
@@ -165,18 +166,23 @@ private[spark] class EventLoggingListener(
     }
     event match {
       case event: SparkListenerJobEnd =>
-        println(s"event SparkListenerJobEnd: ${event}")
         if (rotate) {
-          println(s"checking size: ${fileSystem.getFileStatus(
+          logDebug(s"checking size: ${fileSystem.getFileStatus(
             new Path(workingLogPath)).getLen}" +
             s" >= $rotateSize result " +
             s"${fileSystem.getFileStatus(new Path(workingLogPath)).getLen >= rotateSize}")
           if (fileSystem.getFileStatus(new Path(workingLogPath)).getLen >= rotateSize) {
             stop()
-            println(s"checking index: ${(logFileIndex > rotateNum)}")
+            logTrace(s"checking index: ${(logFileIndex > rotateNum)}")
             if (logFileIndex > rotateNum) logFileIndex = 1 else logFileIndex += 1
             start
+            onApplicationStart(applicationStartEvent.get)
           }
+        }
+      case event: SparkListenerApplicationStart =>
+        if (rotate) {
+          logDebug(s"Updating Spark application ${event.appId} start event")
+          applicationStartEvent = Option(event)
         }
       case _ =>
     }
@@ -270,7 +276,7 @@ private[spark] class EventLoggingListener(
   def stop(): Unit = {
     writer.foreach(_.close())
 
-    val target = new Path(s"${logPath}${if (rotate) s"-${logFileIndex}"}")
+    val target = new Path(s"${logPath}${if (rotate) s"-${logFileIndex}-$LOG_ROTATE_SUFFIX"}")
     if (fileSystem.exists(target)) {
       if (shouldOverwrite || rotate) {
         logWarning(s"Event log $target already exists" +
@@ -312,6 +318,7 @@ private[spark] class EventLoggingListener(
 private[spark] object EventLoggingListener extends Logging {
   // Suffix applied to the names of files still being written by applications.
   val IN_PROGRESS = ".inprogress"
+  val LOG_ROTATE_SUFFIX = "-log-rotate"
   val DEFAULT_LOG_DIR = "/tmp/spark-events"
 
   private val LOG_FILE_PERMISSIONS = new FsPermission(Integer.parseInt("770", 8).toShort)
