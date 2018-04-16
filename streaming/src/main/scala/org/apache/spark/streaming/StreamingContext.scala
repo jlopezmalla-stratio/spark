@@ -689,6 +689,7 @@ class StreamingContext private[streaming] (
             env.metricsSystem.removeSource(streamingSource)
           }
           Utils.tryLogNonFatalError {
+            println(s"Detaching from WEB: ${Thread.currentThread().getStackTrace.map(_.toString).mkString("\n")}")
             uiTab.foreach(_.detach())
           }
           StreamingContext.setActiveContext(null)

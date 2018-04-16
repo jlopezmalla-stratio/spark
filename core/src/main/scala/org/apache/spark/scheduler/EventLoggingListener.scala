@@ -24,10 +24,12 @@ import java.util.Locale
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream, Path}
 import org.apache.hadoop.fs.permission.FsPermission
+
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.JsonMethods._
 
@@ -73,7 +75,6 @@ private[spark] class EventLoggingListener(
   private val rotateNum = sparkConf.getInt("spark.eventLog.rotate.num", 9)
   private val rotate = sparkConf.getBoolean("spark.eventLog.rotate", false)
   private var logFileIndex = 0
-  private var applicationStartEvent: Option[SparkListenerApplicationStart] = None
 
   private val fileSystem = Utils.getHadoopFileSystem(logBaseDir, hadoopConf)
   private val compressionCodec =
@@ -89,7 +90,14 @@ private[spark] class EventLoggingListener(
   // Only defined if the file system scheme is not local
   private var hadoopDataStream: Option[FSDataOutputStream] = None
 
+  // Only defined if the file system scheme is not local
+  private var applicationHadoopDataStream: Option[FSDataOutputStream] = None
+
+
   private var writer: Option[PrintWriter] = None
+
+  private var applicationWriter: Option[PrintWriter] = None
+
 
   // For testing. Keep track of all JSON serialized events that have been logged.
   private[scheduler] val loggedEvents = new ArrayBuffer[JValue]
@@ -110,9 +118,14 @@ private[spark] class EventLoggingListener(
     }
 
     val workingPath = logPath + IN_PROGRESS
+
     val uri = new URI(workingPath)
+
     val path = new Path(workingPath)
+
+
     val defaultFs = FileSystem.getDefaultUri(hadoopConf).getScheme
+
     val isDefaultLocal = defaultFs == null || defaultFs == "file"
 
     if (shouldOverwrite && fileSystem.delete(path, true)) {
@@ -136,7 +149,40 @@ private[spark] class EventLoggingListener(
       EventLoggingListener.initEventLog(bstream)
       fileSystem.setPermission(path, LOG_FILE_PERMISSIONS)
       writer = Some(new PrintWriter(bstream))
-      logInfo("Logging events to %s".format(logPath))
+
+      val applicationWorkingPath = logPath + APPLICATION
+
+      val applicationUri = new URI(workingPath)
+      val applicationPath = new Path(applicationWorkingPath)
+
+      if(!fileSystem.exists(applicationPath)) {
+        logInfo("Logging Application Master events to %s".format(logPath))
+
+        val applicationDstream =
+          if ((isDefaultLocal &&
+            applicationUri.getScheme == null) || applicationUri.getScheme == "file") {
+            new FileOutputStream(applicationUri.getPath)
+          } else {
+            applicationHadoopDataStream = Some(fileSystem.create(applicationPath))
+            applicationHadoopDataStream.get
+          }
+        val applicationCstream = compressionCodec
+          .map(_.compressedOutputStream(applicationDstream)).getOrElse(applicationDstream)
+        val applicationBstream = new BufferedOutputStream(applicationCstream, outputBufferSize)
+
+        applicationWriter = Some(new PrintWriter(applicationBstream))
+      } else {
+        val applicationHadoopReader = fileSystem.open(applicationPath)
+        try {
+          val lines = Source.fromInputStream(applicationHadoopReader).getLines()
+          // scalastyle:off println
+          lines.foreach(currentLine =>
+            writer.foreach(_.println(compact(render(parse(currentLine))))))
+          // scalastyle:off println
+        } finally {
+          applicationHadoopReader.close()
+        }
+      }
     } catch {
       case e: Exception =>
         dstream.close()
@@ -149,7 +195,12 @@ private[spark] class EventLoggingListener(
 
     val eventJson = JsonProtocol.sparkEventToJson(event)
     // scalastyle:off println
-    writer.foreach(_.println(compact(render(eventJson))))
+    if(event.logApplication) {
+      applicationWriter.foreach(_.println(compact(render(eventJson))))
+    }
+    else {
+      writer.foreach(_.println(compact(render(eventJson))))
+    }
 
     if (flushLogger) {
       writer.foreach(_.flush())
@@ -164,6 +215,7 @@ private[spark] class EventLoggingListener(
         )
       )
     }
+
     event match {
       case event: SparkListenerJobEnd =>
         if (rotate) {
@@ -176,13 +228,7 @@ private[spark] class EventLoggingListener(
             logTrace(s"checking index: ${(logFileIndex > rotateNum)}")
             if (logFileIndex > rotateNum) logFileIndex = 1 else logFileIndex += 1
             start
-            onApplicationStart(applicationStartEvent.get)
           }
-        }
-      case event: SparkListenerApplicationStart =>
-        if (rotate) {
-          logDebug(s"Updating Spark application ${event.appId} start event")
-          applicationStartEvent = Option(event)
         }
       case _ =>
     }
@@ -318,6 +364,7 @@ private[spark] class EventLoggingListener(
 private[spark] object EventLoggingListener extends Logging {
   // Suffix applied to the names of files still being written by applications.
   val IN_PROGRESS = ".inprogress"
+  val APPLICATION = ".application"
   val LOG_ROTATE_SUFFIX = "-log-rotate"
   val DEFAULT_LOG_DIR = "/tmp/spark-events"
 

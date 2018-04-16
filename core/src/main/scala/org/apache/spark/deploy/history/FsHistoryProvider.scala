@@ -724,6 +724,10 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         logInfo(s"Application Attempt $appId/$attemptId not found")
         false
       case Some(latest) =>
+        // TODO: REMOVE THIS
+        logInfo(s"latest fileSize ${latest.fileSize} " +
+          s"prevFileSize: ${prevFileSize}, " +
+          s"updateProbe: ${prevFileSize != latest.fileSize}")
         prevFileSize != latest.fileSize
     }
   }
