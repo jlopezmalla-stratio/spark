@@ -198,9 +198,7 @@ private[spark] class EventLoggingListener(
     if(event.logApplication) {
       applicationWriter.foreach(_.println(compact(render(eventJson))))
     }
-    else {
-      writer.foreach(_.println(compact(render(eventJson))))
-    }
+    writer.foreach(_.println(compact(render(eventJson))))
 
     if (flushLogger) {
       writer.foreach(_.flush())
@@ -364,7 +362,7 @@ private[spark] class EventLoggingListener(
 private[spark] object EventLoggingListener extends Logging {
   // Suffix applied to the names of files still being written by applications.
   val IN_PROGRESS = ".inprogress"
-  val APPLICATION = ".application"
+  val APPLICATION = "-application"
   val LOG_ROTATE_SUFFIX = "-log-rotate"
   val DEFAULT_LOG_DIR = "/tmp/spark-events"
 

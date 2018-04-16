@@ -315,7 +315,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       val filter = new PathFilter {
         override def accept(path: Path): Boolean = {
           val name = path.getName
-          if (name.endsWith(s"${EventLoggingListener.LOG_ROTATE_SUFFIX}")) false else true
+          !(name.endsWith(s"${EventLoggingListener.LOG_ROTATE_SUFFIX}") ||
+            name.endsWith(s"${EventLoggingListener.APPLICATION}"))
         }
       }
 
