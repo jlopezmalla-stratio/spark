@@ -200,7 +200,10 @@ private[spark] class EventLoggingListener(
     logInfo(s"log: $event is log application? ${event.logApplication}")
     // scalastyle:off println
     if(event.logApplication) {
-      applicationWriter.foreach(_.println(compact(render(eventJson))))
+      applicationWriter.foreach(a => {
+        logInfo(s"Entrando con PrintWriter $a")
+        a.println(compact(render(eventJson)))
+      })
     }
     writer.foreach(_.println(compact(render(eventJson))))
 
