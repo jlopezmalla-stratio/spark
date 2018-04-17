@@ -206,6 +206,8 @@ private[spark] class EventLoggingListener(
         logInfo(s"Entrando con PrintWriter $a")
         a.println(compact(render(eventJson)))
       })
+      applicationWriter.foreach(_.flush())
+      applicationHadoopDataStream.foreach(_.hflush())
     }
     writer.foreach(_.println(compact(render(eventJson))))
 
