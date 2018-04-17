@@ -167,6 +167,8 @@ private[spark] class EventLoggingListener(
         val applicationCstream = compressionCodec
           .map(_.compressedOutputStream(applicationDstream)).getOrElse(applicationDstream)
         val applicationBstream = new BufferedOutputStream(applicationCstream, outputBufferSize)
+        EventLoggingListener.initEventLog(applicationBstream)
+        fileSystem.setPermission(applicationPath, LOG_FILE_PERMISSIONS)
 
         applicationWriter = Some(new PrintWriter(applicationBstream))
       }
