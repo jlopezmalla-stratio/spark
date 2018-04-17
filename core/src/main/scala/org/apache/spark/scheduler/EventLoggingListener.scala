@@ -155,9 +155,7 @@ private[spark] class EventLoggingListener(
       val applicationUri = new URI(workingPath)
       val applicationPath = new Path(applicationWorkingPath)
 
-      if(!fileSystem.exists(applicationPath)) {
-        logInfo("Logging Application Master events to %s".format(logPath))
-
+      if(applicationWriter.isEmpty) {
         val applicationDstream =
           if ((isDefaultLocal &&
             applicationUri.getScheme == null) || applicationUri.getScheme == "file") {
@@ -171,7 +169,9 @@ private[spark] class EventLoggingListener(
         val applicationBstream = new BufferedOutputStream(applicationCstream, outputBufferSize)
 
         applicationWriter = Some(new PrintWriter(applicationBstream))
-      } else {
+      }
+
+      if(fileSystem.exists(applicationPath) && fileSystem.getFileStatus(path).getLen == 0) {
         val applicationHadoopReader = fileSystem.open(applicationPath)
         try {
           val lines = Source.fromInputStream(applicationHadoopReader).getLines()
@@ -182,6 +182,8 @@ private[spark] class EventLoggingListener(
         } finally {
           applicationHadoopReader.close()
         }
+        logInfo("Logging Application Master events to %s".format(logPath))
+
       }
     } catch {
       case e: Exception =>
