@@ -17,27 +17,29 @@
 
 package org.apache.spark.streaming.ui
 
-import java.util.{LinkedHashMap, Map => JMap, Properties}
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.{LinkedHashMap, Properties, Map => JMap}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{HashMap, Queue}
 
 import org.apache.spark.scheduler._
-import org.apache.spark.streaming.{StreamingContext, Time}
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.Time
 import org.apache.spark.streaming.scheduler._
 
-private[spark] class StreamingJobProgressListener(ssc: StreamingContext)
+private[spark] class StreamingJobProgressListener(conf: SparkConf)
   extends SparkListener with StreamingListener {
 
   private val waitingBatchUIData = new HashMap[Time, BatchUIData]
   private val runningBatchUIData = new HashMap[Time, BatchUIData]
   private val completedBatchUIData = new Queue[BatchUIData]
-  private val batchUIDataLimit = ssc.conf.getInt("spark.streaming.ui.retainedBatches", 1000)
+  private val batchUIDataLimit = conf.getInt("spark.streaming.ui.retainedBatches", 1000)
   private var totalCompletedBatches = 0L
   private var totalReceivedRecords = 0L
   private var totalProcessedRecords = 0L
   private val receiverInfos = new HashMap[Int, ReceiverInfo]
+  private val inputStreams = new HashMap[Int, (String, Boolean)]
 
   private var _startTime = -1L
 
@@ -66,7 +68,28 @@ private[spark] class StreamingJobProgressListener(ssc: StreamingContext)
     }
 
 
-  val batchDuration = ssc.graph.batchDuration.milliseconds
+  @volatile var batchDuration = 0L
+  @volatile var applicationStartTime = 0L
+  @volatile var applicationEndTime = 0L
+
+  override def onStreamingApplicationStarted(
+         streamingListenerApplicationStart: StreamingListenerApplicationStart): Unit = {
+    batchDuration = streamingListenerApplicationStart.batchDuration
+    applicationStartTime = streamingListenerApplicationStart.startTime
+  }
+
+  override def onStreamingApplicationEnd(
+        streamingListenerApplicationEnd: StreamingListenerApplicationEnd): Unit = {
+    applicationEndTime = streamingListenerApplicationEnd.endTime
+  }
+
+  override def onInputStreamRegistered(
+       streamingListenerInputStreamRegistered: StreamingListenerInputStreamRegistered): Unit =
+    synchronized {
+    inputStreams.put(streamingListenerInputStreamRegistered.streamId,
+      (streamingListenerInputStreamRegistered.name,
+        streamingListenerInputStreamRegistered.isReceiverBased))
+  }
 
   override def onStreamingStarted(streamingStarted: StreamingListenerStreamingStarted) {
     _startTime = streamingStarted.time
@@ -135,14 +158,14 @@ private[spark] class StreamingJobProgressListener(ssc: StreamingContext)
       updateOutputOperationInfo(outputOperationCompleted.outputOperationInfo)
   }
 
-  override def onJobStart(jobStart: SparkListenerJobStart): Unit = synchronized {
-    getBatchTimeAndOutputOpId(jobStart.properties).foreach { case (batchTime, outputOpId) =>
+  override def onStreamingJobStart(jobStart: StreamingOnJobStart): Unit = synchronized {
+    getBatchTimeAndOutputOpId(jobStart.event.properties).foreach { case (batchTime, outputOpId) =>
       var outputOpIdToSparkJobIds = batchTimeToOutputOpIdSparkJobIdPair.get(batchTime)
       if (outputOpIdToSparkJobIds == null) {
         outputOpIdToSparkJobIds = new ConcurrentLinkedQueue[OutputOpIdAndSparkJobId]()
         batchTimeToOutputOpIdSparkJobIdPair.put(batchTime, outputOpIdToSparkJobIds)
       }
-      outputOpIdToSparkJobIds.add(OutputOpIdAndSparkJobId(outputOpId, jobStart.jobId))
+      outputOpIdToSparkJobIds.add(OutputOpIdAndSparkJobId(outputOpId, jobStart.event.jobId))
     }
   }
 
@@ -169,7 +192,7 @@ private[spark] class StreamingJobProgressListener(ssc: StreamingContext)
   }
 
   def numInactiveReceivers: Int = {
-    ssc.graph.getNumReceivers - numActiveReceivers
+    numReceivers - numActiveReceivers
   }
 
   def numTotalCompletedBatches: Long = synchronized {
@@ -201,13 +224,17 @@ private[spark] class StreamingJobProgressListener(ssc: StreamingContext)
   }
 
   def streamName(streamId: Int): Option[String] = {
-    ssc.graph.getInputStreamNameAndID.find(_._2 == streamId).map(_._1)
+    synchronized {
+      inputStreams.get(streamId).map(_._1)
+    }
   }
 
   /**
    * Return all InputDStream Ids
    */
-  def streamIds: Seq[Int] = ssc.graph.getInputStreamNameAndID.map(_._2)
+  def streamIds: Seq[Int] = synchronized {
+       inputStreams.keySet.toSeq
+     }
 
   /**
    * Return all of the record rates for each InputDStream in each batch. The key of the return value
