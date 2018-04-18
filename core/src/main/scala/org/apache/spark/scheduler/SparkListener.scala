@@ -179,7 +179,9 @@ case class SparkListenerApplicationStart(
     time: Long,
     sparkUser: String,
     appAttemptId: Option[String],
-    driverLogs: Option[Map[String, String]] = None) extends SparkListenerEvent
+    driverLogs: Option[Map[String, String]] = None) extends SparkListenerEvent {
+  override protected[spark] def logApplication: Boolean = true
+}
 
 @DeveloperApi
 case class SparkListenerApplicationEnd(time: Long) extends SparkListenerEvent
