@@ -580,6 +580,7 @@ class SparkContext(config: SparkConf) extends Logging {
       logInfo("Invoking stop() from shutdown hook")
       stop()
     }
+
   } catch {
     case NonFatal(e) =>
       logError("Error initializing SparkContext.", e)
