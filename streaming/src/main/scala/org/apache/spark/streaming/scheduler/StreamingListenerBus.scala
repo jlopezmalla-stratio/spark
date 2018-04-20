@@ -29,9 +29,8 @@ import org.apache.spark.util.ListenerBus
  * registers itself with Spark listener bus, so that it can receive WrappedStreamingListenerEvents,
  * unwrap them as StreamingListenerEvent and dispatch them to StreamingListeners.
  */
-private[streaming] abstract class StreamingListenerBus
+private[streaming] abstract class StreamingListenerBus(sparkUI: Option[SparkUI])
   extends SparkListener with ListenerBus[StreamingListener, StreamingListenerEvent] {
-
 
   override def onOtherEvent(event: SparkListenerEvent): Unit = {
     event match {
@@ -41,16 +40,23 @@ private[streaming] abstract class StreamingListenerBus
     }
   }
 
-
   override def onJobStart(jobStart: SparkListenerJobStart): Unit = {
     postToAll(StreamingOnJobStart(jobStart))
   }
 
-  protected override def doPostEvent(
-                                      listener: StreamingListener,
+  protected override def doPostEvent(listener: StreamingListener,
                                       event: StreamingListenerEvent): Unit = {
     event match {
       case applicationStarted: StreamingListenerApplicationStart =>
+        listener match {
+          case listener: StreamingJobProgressListener =>
+            sparkUI.map(ui => {
+              val streamingTab = new StreamingTab(listener, ui)
+              streamingTab.attach()
+            })
+          case _ =>
+        }
+
         listener.onStreamingApplicationStarted(applicationStarted)
       case applicationEnd: StreamingListenerApplicationEnd =>
         listener.onStreamingApplicationEnd(applicationEnd)
@@ -80,8 +86,8 @@ private[streaming] abstract class StreamingListenerBus
     }
   }
 }
-  private[streaming] class LiveStreamingListenerBus(sparkListenerBus: LiveListenerBus)
-    extends StreamingListenerBus {
+  private[streaming] class LiveStreamingListenerBus(sparkListenerBus: LiveListenerBus,
+    sparkUI: Option[SparkUI] = None) extends StreamingListenerBus(sparkUI) {
 
     /**
       * Post a StreamingListenerEvent to the Spark listener bus asynchronously. This event will be
@@ -107,16 +113,15 @@ private[streaming] abstract class StreamingListenerBus
       sparkListenerBus.removeListener(this)
     }
   }
-private[streaming] class ReplayStreamingListenerBus extends StreamingListenerBus
+private[streaming] class ReplayStreamingListenerBus(sparkUI: Option[SparkUI] = None)
+  extends StreamingListenerBus(sparkUI)
 
 
 private[streaming] class StreamingHistoryListenerFactory extends SparkHistoryListenerFactory {
   override def createListeners(conf: SparkConf, sparkUI: SparkUI): Seq[SparkListener] = {
-    val listenerBus = new ReplayStreamingListenerBus()
+    val listenerBus = new ReplayStreamingListenerBus(Option(sparkUI))
     val streamingListener = new StreamingJobProgressListener(conf)
     listenerBus.addListener(streamingListener)
-    val streamingTab = new StreamingTab(streamingListener, sparkUI)
-    streamingTab.attach()
     List(listenerBus)
   }
 }
