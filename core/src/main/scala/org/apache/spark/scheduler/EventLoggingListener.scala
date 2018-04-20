@@ -159,7 +159,7 @@ private[spark] class EventLoggingListener(
         val applicationDstream =
           if ((isDefaultLocal &&
             applicationUri.getScheme == null) || applicationUri.getScheme == "file") {
-            new FileOutputStream(applicationUri.getPath)
+            fileSystem.create(applicationPath)
           } else {
             applicationHadoopDataStream = Some(fileSystem.create(applicationPath))
             applicationHadoopDataStream.get
@@ -331,7 +331,9 @@ private[spark] class EventLoggingListener(
   def stop(): Unit = {
     writer.foreach(_.close())
 
-    val target = new Path(s"${logPath}${if (rotate) s"-${logFileIndex}-$LOG_ROTATE_SUFFIX"}")
+    val target = new Path(s"${logPath}${if (rotate) {
+      s"-${logFileIndex}-$LOG_ROTATE_SUFFIX"
+    } else ""}")
     if (fileSystem.exists(target)) {
       if (shouldOverwrite || rotate) {
         logWarning(s"Event log $target already exists" +
