@@ -287,17 +287,8 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       printUsageAndExit()
     }
 
-    try {
-      ConfigSecurity.prepareEnvironment
-      run(driverUrl, executorId, hostname, cores, appId, workerUrl, userClassPath)
-    } catch {
-
-      // Notify using the Stratio standard format
-      case e: Exception =>
-        logError("Error initializing Spark executor", e)
-        throw e
-
-    }
+    ConfigSecurity.prepareEnvironment
+    run(driverUrl, executorId, hostname, cores, appId, workerUrl, userClassPath)
 
     System.exit(0)
   }

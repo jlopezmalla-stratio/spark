@@ -16,16 +16,18 @@ hose {
         doUT(config)
         parallel(DOCKER1: {
                     doDocker(conf: config, dockerfile:"DockerfileDispatcher")
+                },DOCKER2: {
+                    doDocker(conf: config, dockerfile:"DockerfileDriver", image:"spark-stratio-driver")
                 }, DEPLOY: {
                     doDeploy(config)
-                }, DOCKER2: {
+                }, DOCKER3: {
                      doDocker(conf: config, dockerfile:"DockerfileHistory", image:"spark-stratio-history-server")
         }, failFast: config.FAILFAST)
      }
 
 
     INSTALLSERVICES = [
-            ['DCOSCLI':   ['image': 'stratio/dcos-cli:0.4.15',
+            ['DCOSCLI':   ['image': 'stratio/dcos-cli:0.4.15-SNAPSHOT',
                            'volumes': ['stratio/paasintegrationpem:0.1.0'],
                            'env':     ['DCOS_IP=10.200.0.156',
                                       'SSL=true',
@@ -40,20 +42,21 @@ hose {
 
     INSTALLPARAMETERS = """
         | -DDCOS_CLI_HOST=%%DCOSCLI#0
-        | -DVAULT_HOST=10.200.0.157
-        | -DVAULT_PORT=8200
-        | -DDCOS_USER=admin@demo.stratio.com
-                | -DDCOS_PASSWORD=1234
-        | -DCLI_USER=root
-        | -DCLI_PASSWORD=stratio
-        | -DREMOTE_USER=root
-        | -DREMOTE_PASSWORD=stratio
         | -DDCOS_IP=10.200.0.156
+        | -DPEM_PATH=/paascerts/PaasIntegration.pem
+        | -DBOOTSTRAP_IP=10.200.0.155
+        | -DSPARK_DOCKER_IMAGE=qa.stratio.com/stratio/stratio-spark
+        | -DSTRATIO_SPARK_VERSION=%%VERSION
+        | -DCLUSTER_ID=nightly
+        | -DSPARK_COVERAGE_IMAGE=qa.stratio.com/stratio/stratio-spark-coverage
+        | -DCOVERAGE_VERSION=0.2.0-SNAPSHOT
+        | -DSPARK_FW_NAME=spark-fw
+        | -DPOSTGRES_INSTANCE=pg-0001-postgrestls.service.paas.labs.stratio.com:5432/postgres
         | """.stripMargin().stripIndent()
 
     INSTALL = { config, params ->
       def ENVIRONMENTMAP = stringToMap(params.ENVIRONMENT)      
-      doAT(conf: config, groups: ['installation'])
+      doAT(conf: config)
     }
 
 }

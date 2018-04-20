@@ -30,60 +30,29 @@ import sun.security.util.DerInputStream
 
 import org.apache.spark.internal.Logging
 
+
+
 object SSLConfig extends Logging {
 
   val sslTypeDataStore = "DATASTORE"
 
+  private val sparkSSLPrefix = "spark.ssl."
+
   def prepareEnvironment(sslType: String,
                          options: Map[String, String]): Map[String, String] = {
 
-    val sparkSSLPrefix = "spark.ssl."
 
-    val trustStore = VaultHelper.getAllCas
-    val trustPass = VaultHelper.getCAPass
-    val trustStorePath = generateTrustStore(sslType, trustStore, trustPass)
+    val trustStoreOptions = generateTruststoreOptions(sslType)
+    val keyStoreOptions = generateKeystoreOptions(sslType, options)
 
-    logInfo(s"Setting SSL values for $sslType")
+    val vaultKeyPassPath = options(s"${sslType}_VAULT_KEY_PASS_PATH")
 
-    val trustStoreOptions =
-      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.enabled" -> "true",
-        s"$sparkSSLPrefix${sslType.toLowerCase}.trustStore" -> trustStorePath,
-        s"$sparkSSLPrefix${sslType.toLowerCase}.trustStorePassword" -> trustPass,
-        s"$sparkSSLPrefix${sslType.toLowerCase}.security.protocol" -> "SSL")
+    val keyPass =
+      VaultHelper.getCertPassForAppFromVault(vaultKeyPassPath).get
 
-    val vaultKeystorePath = options.get(s"${sslType}_VAULT_CERT_PATH")
-
-    val vaultKeystorePassPath = options.get(s"${sslType}_VAULT_CERT_PASS_PATH")
-
-    val keyStoreOptions = if (vaultKeystorePath.isDefined && vaultKeystorePassPath.isDefined) {
-
-      val (key, certs) =
-        VaultHelper.getCertKeyForAppFromVault(vaultKeystorePath.get)
-      
-      pemToDer(key)
-      generatePemFile(certs, "cert.crt")
-      generatePemFile(trustStore, "ca.crt")
-
-      val pass = VaultHelper.getCertPassForAppFromVault( vaultKeystorePassPath.get)
-
-      val keyStorePath = generateKeyStore(sslType, certs, key, pass)
-
-      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.keyStore" -> keyStorePath,
-        s"$sparkSSLPrefix${sslType.toLowerCase}.keyStorePassword" -> pass,
-        s"$sparkSSLPrefix${sslType.toLowerCase}.protocol" -> "TLSv1.2",
-        s"$sparkSSLPrefix${sslType.toLowerCase}.needClientAuth" -> "true"
-      )
-
-    } else {
-      logInfo(s"trying to get ssl secrets from vault for ${sslType.toLowerCase} keyStore" +
-        s" but not found pass and cert vault paths, exiting")
-      Map[String, String]()
-    }
-
-    val vaultKeyPassPath = options.get(s"${sslType}_VAULT_KEY_PASS_PATH")
-
-    val keyPass = Map(s"$sparkSSLPrefix${sslType.toLowerCase}.keyPassword"
-      -> VaultHelper.getCertPassForAppFromVault(vaultKeyPassPath.get))
+    val keyPassOptions = Map(
+      s"$sparkSSLPrefix${sslType.toLowerCase}.keyPassword" -> keyPass
+    )
 
     val certFilesPath =
       Map(s"$sparkSSLPrefix${sslType.toLowerCase}.certPem.path" ->
@@ -93,7 +62,73 @@ object SSLConfig extends Logging {
         s"$sparkSSLPrefix${sslType.toLowerCase}.caPem.path" ->
           s"${ConfigSecurity.secretsFolder}/ca.crt")
 
-    trustStoreOptions ++ keyStoreOptions ++ keyPass ++ certFilesPath
+    trustStoreOptions ++ keyStoreOptions ++ keyPassOptions ++ certFilesPath
+  }
+
+  private def generateTruststoreOptions(sslType: String): Map[String, String] = {
+
+    val getTrustStoreAndPass = for {
+
+       trustStore <- VaultHelper.getAllCas
+       trustPass <- VaultHelper.getCAPass
+
+    } yield {
+
+      generatePemFile(trustStore, "ca.crt")
+
+      (generateTrustStore(sslType, trustStore, trustPass), trustPass)
+    }
+
+    val (trustStorePath, trustPass) = getTrustStoreAndPass.get
+
+    logInfo(s"Setting SSL values for $sslType")
+
+
+      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.enabled" -> "true",
+        s"$sparkSSLPrefix${sslType.toLowerCase}.trustStore" -> trustStorePath,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.trustStorePassword" -> trustPass,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.security.protocol" -> "SSL")
+
+  }
+
+  private def generateKeystoreOptions(
+                                       sslType: String,
+                                       options: Map[String, String]
+                                     ): Map[String, String] = {
+
+    val keystoreOptions = for {
+
+      vaultKeystorePath <- options.get(s"${sslType}_VAULT_CERT_PATH")
+      vaultKeystorePassPath <- options.get(s"${sslType}_VAULT_CERT_PASS_PATH")
+
+    } yield {
+
+      val certName = options.get(s"${sslType}_CERTIFICATE_NAME")
+
+      val (key, certs) =
+        VaultHelper.getCertKeyForAppFromVault(vaultKeystorePath, certName).get
+
+      pemToDer(key)
+      generatePemFile(certs, "cert.crt")
+
+      val pass =
+        VaultHelper.getCertPassForAppFromVault( vaultKeystorePassPath).get
+
+      val keyStorePath = generateKeyStore(sslType, certs, key, pass)
+
+      Map(s"$sparkSSLPrefix${sslType.toLowerCase}.keyStore" -> keyStorePath,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.keyStorePassword" -> pass,
+        s"$sparkSSLPrefix${sslType.toLowerCase}.protocol" -> "TLSv1.2",
+        s"$sparkSSLPrefix${sslType.toLowerCase}.needClientAuth" -> "true"
+      )
+    }
+
+    keystoreOptions.getOrElse {
+        logInfo(s"trying to get ssl secrets from vault for ${sslType.toLowerCase} keyStore" +
+          s" but not found pass and cert vault paths, exiting")
+        Map.empty
+    }
+
   }
 
   def generateTrustStore(sslType: String, cas: String, password: String): String = {

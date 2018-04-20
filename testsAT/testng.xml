@@ -1,0 +1,76 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="Full TestsAT in Nightlies" thread-count="1" preserve-order="true">
+
+    <test name="init" preserve-order="true">
+        <groups>
+            <run>
+                <include name="DownloadImages"/>
+            </run>
+        </groups>
+
+        <packages>
+            <package name="com.stratio.pf.*" />
+        </packages>
+    </test>
+
+    <test name="installation" preserve-order="true">
+        <groups>
+            <run>
+                <include name="InstallDispatcher"/>
+                <include name="InstallHistoryServer"/>
+                <include name="InstallShuffle"/>
+                <include name="InstallCoverage"/>
+            </run>
+        </groups>
+
+        <packages>
+            <package name="com.stratio.pf.*" />
+        </packages>
+    </test>
+
+    <test name="coverage" preserve-order="true">
+        <groups>
+            <run>
+                <include name="ElasticCoverage"/>
+                <include name="HDFSCoverage"/>
+                <include name="KafkaCoverage"/>
+                <include name="PostgresCoverage"/>
+                <include name="DynamicCoverage"/>
+                <include name="StructuredStreamingCoverage"/>
+            </run>
+        </groups>
+
+        <packages>
+            <package name="com.stratio.pf.*" />
+        </packages>
+    </test>
+
+    <test name="uninstallation" preserve-order="true">
+        <groups>
+            <run>
+                <include name="UninstallDispatcher"/>
+                <include name="UninstallHistoryServer"/>
+                <include name="UninstallShuffle"/>
+                <include name="UninstallCoverage"/>
+            </run>
+        </groups>
+
+        <packages>
+            <package name="com.stratio.pf.*" />
+        </packages>
+    </test>
+
+    <test name="remainDispatcherInstalled" preserve-order="true">
+        <groups>
+            <run>
+                <include name="InstallDispatcher"/>
+            </run>
+        </groups>
+
+        <packages>
+            <package name="com.stratio.pf.*" />
+        </packages>
+    </test>
+
+</suite>

@@ -56,7 +56,7 @@ class StreamingJobProgressListenerSuite extends TestSuiteBase with Matchers {
   test("onBatchSubmitted, onBatchStarted, onBatchCompleted, " +
     "onReceiverStarted, onReceiverError, onReceiverStopped") {
     ssc = setupStreams(input, operation)
-    val listener = new StreamingJobProgressListener(ssc)
+    val listener = new StreamingJobProgressListener(conf)
 
     val streamIdToInputInfo = Map(
       0 -> StreamInputInfo(0, 300L),
@@ -161,7 +161,7 @@ class StreamingJobProgressListenerSuite extends TestSuiteBase with Matchers {
   test("Remove the old completed batches when exceeding the limit") {
     ssc = setupStreams(input, operation)
     val limit = ssc.conf.getInt("spark.streaming.ui.retainedBatches", 1000)
-    val listener = new StreamingJobProgressListener(ssc)
+    val listener = new StreamingJobProgressListener(conf)
 
     val streamIdToInputInfo = Map(0 -> StreamInputInfo(0, 300L), 1 -> StreamInputInfo(1, 300L))
 
@@ -179,7 +179,7 @@ class StreamingJobProgressListenerSuite extends TestSuiteBase with Matchers {
   test("out-of-order onJobStart and onBatchXXX") {
     ssc = setupStreams(input, operation)
     val limit = ssc.conf.getInt("spark.streaming.ui.retainedBatches", 1000)
-    val listener = new StreamingJobProgressListener(ssc)
+    val listener = new StreamingJobProgressListener(conf)
 
     // fulfill completedBatchInfos
     for(i <- 0 until limit) {
@@ -187,12 +187,12 @@ class StreamingJobProgressListenerSuite extends TestSuiteBase with Matchers {
           Time(1000 + i * 100), Map.empty, 1000 + i * 100, Some(2000 + i * 100), None, Map.empty)
       listener.onBatchCompleted(StreamingListenerBatchCompleted(batchInfoCompleted))
       val jobStart = createJobStart(Time(1000 + i * 100), outputOpId = 0, jobId = 1)
-      listener.onJobStart(jobStart)
+      listener.onStreamingJobStart(StreamingOnJobStart(jobStart))
     }
 
     // onJobStart happens before onBatchSubmitted
     val jobStart = createJobStart(Time(1000 + limit * 100), outputOpId = 0, jobId = 0)
-    listener.onJobStart(jobStart)
+    listener.onStreamingJobStart(StreamingOnJobStart(jobStart))
 
     val batchInfoSubmitted =
       BatchInfo(Time(1000 + limit * 100), Map.empty, (1000 + limit * 100), None, None, Map.empty)
@@ -218,7 +218,7 @@ class StreamingJobProgressListenerSuite extends TestSuiteBase with Matchers {
 
     for(i <- limit + 1 to limit * 2) {
       val jobStart = createJobStart(Time(1000 + i * 100), outputOpId = 0, jobId = 1)
-      listener.onJobStart(jobStart)
+      listener.onStreamingJobStart(StreamingOnJobStart(jobStart))
     }
 
     // We should not leak memory
@@ -229,7 +229,7 @@ class StreamingJobProgressListenerSuite extends TestSuiteBase with Matchers {
 
   test("detect memory leak") {
     ssc = setupStreams(input, operation)
-    val listener = new StreamingJobProgressListener(ssc)
+    val listener = new StreamingJobProgressListener(conf)
 
     val limit = ssc.conf.getInt("spark.streaming.ui.retainedBatches", 1000)
 
@@ -248,16 +248,16 @@ class StreamingJobProgressListenerSuite extends TestSuiteBase with Matchers {
 
       // onJobStart
       val jobStart1 = createJobStart(Time(1000), outputOpId = 0, jobId = 0)
-      listener.onJobStart(jobStart1)
+      listener.onStreamingJobStart(StreamingOnJobStart(jobStart1))
 
       val jobStart2 = createJobStart(Time(1000), outputOpId = 0, jobId = 1)
-      listener.onJobStart(jobStart2)
+      listener.onStreamingJobStart(StreamingOnJobStart(jobStart2))
 
       val jobStart3 = createJobStart(Time(1000), outputOpId = 1, jobId = 0)
-      listener.onJobStart(jobStart3)
+      listener.onStreamingJobStart(StreamingOnJobStart(jobStart3))
 
       val jobStart4 = createJobStart(Time(1000), outputOpId = 1, jobId = 1)
-      listener.onJobStart(jobStart4)
+      listener.onStreamingJobStart(StreamingOnJobStart(jobStart4))
 
       // onBatchCompleted
       val batchInfoCompleted =

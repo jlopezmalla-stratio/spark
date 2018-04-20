@@ -1,0 +1,42 @@
+{
+  "service": {
+    "name": "history-server",
+    "cpus": 1,
+    "mem": 1024,
+    "log-dir": "/tmp/logs/history",
+    "user": "root",
+    "cleaner": {
+      "enabled": false,
+      "interval": "1d",
+      "max-age": "7d"
+    }
+  },
+  "security": {
+    "calico_network_name": "stratio",
+    "vault": {
+      "protocol": "https",
+      "host": "vault.service.paas.labs.stratio.com",
+      "port": 8200,
+      "app_role": "open",
+      "instance": "history-server",
+      "fqdn": "history-server"
+    }
+  },
+  "hdfs": {
+    "hadoop_conf_dir": "/etc/sds/hadoop",
+    "hdfs_fs_defaultfs": "10.200.0.74:8020",
+    "hdfs_hadoop_tmp_dir": "/tmp",
+    "hdfs_hadoop_security_authorization": true,
+    "hdfs_hadoop_security_authentication": "kerberos",
+    "hdfs_dfs_permissions_enabled": false,
+    "hdfs_dfs_block_access_token_enable": true,
+    "hdfs_dfs_http_policy": "HTTPS_ONLY",
+    "hdfs_dfs_https_port": 50070,
+    "kerberos": {
+      "enable": true,
+      "realm": "DEMO.STRATIO.COM",
+      "kdc_host": "idp.integration.labs.stratio.com",
+      "kAdmin_host": "idp.integration.labs.stratio.com"
+    }
+  }
+}

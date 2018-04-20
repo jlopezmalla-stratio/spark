@@ -31,6 +31,7 @@ import org.apache.spark.scheduler.cluster.mesos.MesosClusterScheduler
 import org.apache.spark.security.{ConfigSecurity, VaultHelper}
 import org.apache.spark.util.Utils
 
+
 /**
  * A server that responds to requests submitted by the [[RestSubmissionClient]].
  * All requests are forwarded to
@@ -119,14 +120,17 @@ private[mesos] class MesosSubmitRequestServlet(
               case (roleProp, roleEnv, None, None) if (roleEnv.isDefined || roleProp.isDefined) =>
                 val role = roleProp.getOrElse(roleEnv.get)
                 logTrace(s"obtaining vault secretID and role ID using role: $role")
-                val driverSecretId = VaultHelper.getSecretIdFromVault(role)
-                val driverRoleId = VaultHelper.getRoleIdFromVault(role)
+                val driverSecretId =
+                  VaultHelper.getSecretIdFromVault(role).get
+                val driverRoleId =
+                  VaultHelper.getRoleIdFromVault(role).get
                 Map("spark.mesos.driverEnv.VAULT_ROLE_ID" -> driverRoleId,
                   "spark.mesos.driverEnv.VAULT_SECRET_ID" -> driverSecretId)
               case (None, None, tokenProp, tokenVal) if (tokenProp.isDefined
                 || tokenVal.isDefined) =>
                   val vaultToken = tokenProp.getOrElse(tokenVal.get)
-                  val temporalToken = VaultHelper.getTemporalToken
+                  val temporalToken =
+                    VaultHelper.getTemporalToken.get
                   logDebug(s"Obtained token from One time token; $temporalToken")
                   Map("spark.secret.vault.tempToken" -> temporalToken) ++ request.sparkProperties
                     .filter(_._1 != "spark.secret.vault.token")

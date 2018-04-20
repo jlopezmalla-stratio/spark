@@ -1,0 +1,16 @@
+{
+  "service": {
+    "name": "spark-fw",
+    "tenant_name": "spark-fw",
+    "cpus": 1,
+    "mem": 1024,
+    "user": "root",
+    "log-level": "INFO",
+    "networkName": "stratio",
+    "enable_mesos_security": true,
+    "vault_host": "vault.service.paas.labs.stratio.com",
+    "vault_port": 8200,
+    "vault_protocol": "https",
+    "vault_appRole": "open"
+  }
+}
