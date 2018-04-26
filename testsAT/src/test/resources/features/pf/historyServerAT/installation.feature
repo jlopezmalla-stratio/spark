@@ -14,7 +14,7 @@ Feature: [Install Spark History Server] Installing Spark History Server
 
         #Start image from JSON
         And I run 'dcos package describe --app --options=/dcos/SparkHistoryServerInstallation.json spark-history-server > /dcos/SparkHistoryServerInstallationMarathon.json' in the ssh connection
-        And I run 'sed -i -e 's|"image":.*|"image": "qa.stratio.com/stratio/spark-stratio-history-server:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkHistoryServerInstallationMarathon.json' in the ssh connection
+        And I run 'sed -i -e 's|"image":.*|"image": "${SPARK_HISTORY_SERVER_DOCKER_IMAGE:-qa.stratio.com/stratio/spark-stratio-history-server}:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkHistoryServerInstallationMarathon.json' in the ssh connection
         And I run 'dcos marathon app add /dcos/SparkHistoryServerInstallationMarathon.json' in the ssh connection
 
         #Check Spark-history-server is Running

@@ -13,7 +13,7 @@ Feature: [Install Spark Dispatcher] Installing Spark Dispatcher
 
     #Start image from JSON
     And I run 'dcos package describe --app --options=/dcos/SparkDispatcherInstallation.json spark-dispatcher > /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
-    And I run 'sed -i -e 's|"image":.*|"image": "${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
+    And I run 'sed -i -e 's|"image":.*|"image": "${SPARK_DOCKER_IMAGE:-qa.stratio.com/stratio/stratio-spark}:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
     And I run 'dcos marathon app add /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
 
     #Check Spark-fw is Running

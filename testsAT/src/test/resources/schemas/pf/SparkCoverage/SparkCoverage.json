@@ -19,7 +19,7 @@
   "maxLaunchDelaySeconds": 3600,
   "container": {
     "docker": {
-      "image": "qa.stratio.com/stratio/stratio-spark-coverage:0.1.0-SNAPSHOT",
+      "image": "qa.stratio.com/stratio/stratio-spark-coverage:0.2.0-SNAPSHOT",
       "forcePullImage": true,
       "privileged": false,
       "network": "HOST"

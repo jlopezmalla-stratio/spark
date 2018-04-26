@@ -21,7 +21,7 @@ Feature: [HDFS Structured Streaming Coverage] Structured Streaming Coverage test
     When I send a 'POST' request to '/service/${SPARK_FW_NAME}/v1/submissions/create' based on 'schemas/pf/SparkCoverage/structured_streaming_curl.json' as 'json' with:
       |   $.appResource  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/structured-streaming-${COVERAGE_VERSION}.jar | n/a     |
       |   $.sparkProperties['spark.jars']  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/structured-streaming-${COVERAGE_VERSION}.jar | n/a     |
-      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION} | n/a     |
+      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DRIVER_DOCKER_IMAGE:-qa.stratio.com/stratio/spark-stratio-driver}:${STRATIO_SPARK_VERSION} | n/a     |
       |   $.appArgs[0]  |  UPDATE  | gosec1.node.paas.labs.stratio.com:9092 | n/a     |
 
     Then the service response status must be '200' and its response must contain the text '"success" : true'

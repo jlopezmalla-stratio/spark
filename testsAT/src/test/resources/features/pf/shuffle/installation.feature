@@ -13,7 +13,7 @@ Feature: [Install Spark Shuffle] Installing Spark Shuffle
 
     #Start image from JSON
     And I run 'dcos package describe --app --options=/dcos/SparkShuffleInstallation.json spark-shuffle > /dcos/SparkShuffleInstallationMarathon.json' in the ssh connection
-    And I run 'sed -i -e 's|"image":.*|"image": "${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkShuffleInstallationMarathon.json' in the ssh connection
+    And I run 'sed -i -e 's|"image":.*|"image": "${SPARK_DOCKER_IMAGE:-qa.stratio.com/stratio/stratio-spark}:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkShuffleInstallationMarathon.json' in the ssh connection
     And I run 'dcos marathon app add /dcos/SparkShuffleInstallationMarathon.json' in the ssh connection
 
     #Wait 120 seconds to launch all the spark-shuffle instances (Download from docker image)

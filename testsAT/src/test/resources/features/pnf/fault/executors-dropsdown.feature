@@ -24,7 +24,7 @@ Feature: [Fault Tolerance test] Executor Dropdowns
     When I send a 'POST' request to '/service/${SPARK_FW_NAME}/v1/submissions/create' based on 'schemas/pf/SparkCoverage/kafka_curl.json' as 'json' with:
       |   $.appResource  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/kafka-${COVERAGE_VERSION}.jar | n/a     |
       |   $.sparkProperties['spark.jars']  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/kafka-${COVERAGE_VERSION}.jar | n/a     |
-      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION} | n/a     |
+      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DRIVER_DOCKER_IMAGE:-qa.stratio.com/stratio/spark-stratio-driver}:${STRATIO_SPARK_VERSION} | n/a     |
       |   $.appArgs[0]  |  UPDATE  | gosec1.node.paas.labs.stratio.com:9092 | n/a     |
 
     Then the service response status must be '200' and its response must contain the text '"success" : true'
@@ -44,7 +44,7 @@ Feature: [Fault Tolerance test] Executor Dropdowns
     Then I open a ssh connection to '!{EXECUTOR_IP}' with user 'root' and password 'stratio'
 
     #Wait first for having a running docker
-    Then I run 'docker ps | grep ${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION} | cut -d ' ' -f 1 | while read x; do cmd=$(docker inspect $x | jq '.[]|.Args'); echo $x $cmd; done | grep org.apache.spark.executor.CoarseGrainedExecutorBackend | cut -d ' ' -f 1' in the ssh connection and save the value in environment variable 'DOCKER_ID'
+    Then I run 'docker ps | grep ${SPARK_DRIVER_DOCKER_IMAGE:-qa.stratio.com/stratio/spark-stratio-driver}:${STRATIO_SPARK_VERSION} | cut -d ' ' -f 1 | while read x; do cmd=$(docker inspect $x | jq '.[]|.Args'); echo $x $cmd; done | grep org.apache.spark.executor.CoarseGrainedExecutorBackend | cut -d ' ' -f 1' in the ssh connection and save the value in environment variable 'DOCKER_ID'
     Then I run 'docker rm -f !{DOCKER_ID}' in the ssh connection
 
     #Check there are a TASK_FAILED (killed by us)

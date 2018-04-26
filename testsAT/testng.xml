@@ -14,13 +14,24 @@
         </packages>
     </test>
 
+    <test name="pre-installation" preserve-order="true">
+        <groups>
+            <run>
+                <include name="InstallCoverage"/>
+            </run>
+        </groups>
+
+        <packages>
+            <package name="com.stratio.pf.*" />
+        </packages>
+    </test>
+
     <test name="installation" preserve-order="true">
         <groups>
             <run>
                 <include name="InstallDispatcher"/>
                 <include name="InstallHistoryServer"/>
                 <include name="InstallShuffle"/>
-                <include name="InstallCoverage"/>
             </run>
         </groups>
 
@@ -34,10 +45,10 @@
             <run>
                 <include name="ElasticCoverage"/>
                 <include name="HDFSCoverage"/>
-                <include name="KafkaCoverage"/>
+                <!--<include name="KafkaCoverage"/>-->
                 <include name="PostgresCoverage"/>
                 <include name="DynamicCoverage"/>
-                <include name="StructuredStreamingCoverage"/>
+                <!--<include name="StructuredStreamingCoverage"/>-->
             </run>
         </groups>
 
