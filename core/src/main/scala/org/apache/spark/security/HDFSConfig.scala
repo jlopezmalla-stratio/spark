@@ -20,11 +20,16 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 import java.nio.file.attribute.PosixFilePermissions
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.security.UserGroupInformation
+import org.apache.spark.SparkConf
+import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
+import org.apache.spark.scheduler.KerberosUser
 
 object HDFSConfig extends Logging{
 
-  private def downloadFile(url: String,
+  private[spark] def downloadFile(url: String,
                            fileToDownload: String,
                            outputhPath: String,
                            connectTimeout: Int,
@@ -51,6 +56,23 @@ object HDFSConfig extends Logging{
     val content = scala.io.Source.fromInputStream(inputStream).mkString("")
     if (inputStream != null) inputStream.close
     content
+  }
+
+  def getBaseHost: Option[String] =
+    KerberosUser.baseUgiAndConf.map {
+      case (ugi, conf) =>
+        MultiHDFSConfig.extractHDFSHostFromConf(conf)
+    }
+
+
+  def getUgiAndConfBase: Map[String, (UserGroupInformation, Configuration)] = {
+    val ugiAndConf = KerberosUser.baseUgiAndConf
+
+    ugiAndConf.map {
+      case (ugi, conf) =>
+        Map(MultiHDFSConfig.extractHDFSHostFromConf(conf) -> (ugi, conf))
+    }.getOrElse(Map.empty)
+
   }
 
 

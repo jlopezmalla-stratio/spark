@@ -20,13 +20,12 @@ package org.apache.spark.sql.execution.datasources
 import java.io.FileNotFoundException
 
 import scala.collection.mutable
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
 import org.apache.hadoop.mapred.{FileInputFormat, JobConf}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.HiveCatalogMetrics
+import org.apache.spark.security.MultiHDFSConfig
 import org.apache.spark.sql.execution.streaming.FileStreamSink
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
@@ -48,7 +47,9 @@ class InMemoryFileIndex(
     rootPathsSpecified: Seq[Path],
     parameters: Map[String, String],
     partitionSchema: Option[StructType],
-    fileStatusCache: FileStatusCache = NoopCache)
+    hadoopConf: Configuration,
+    fileStatusCache: FileStatusCache = NoopCache
+    )
   extends PartitioningAwareFileIndex(
     sparkSession, parameters, partitionSchema, fileStatusCache) {
 
@@ -57,7 +58,9 @@ class InMemoryFileIndex(
   // such streaming metadata dir or files, e.g. when after globbing "basePath/*" where "basePath"
   // is the output of a streaming query.
   override val rootPaths =
-    rootPathsSpecified.filterNot(FileStreamSink.ancestorIsMetadataDirectory(_, hadoopConf))
+    rootPathsSpecified.filterNot( path =>
+      FileStreamSink.ancestorIsMetadataDirectory(path, hadoopConf)
+    )
 
   @volatile private var cachedLeafFiles: mutable.LinkedHashMap[Path, FileStatus] = _
   @volatile private var cachedLeafDirToChildrenFiles: Map[Path, Array[FileStatus]] = _
@@ -120,7 +123,9 @@ class InMemoryFileIndex(
           pathsToFetch += path
       }
     }
-    val filter = FileInputFormat.getInputPathFilter(new JobConf(hadoopConf, this.getClass))
+
+    val filter =
+      FileInputFormat.getInputPathFilter(new JobConf(hadoopConf, this.getClass))
     val discovered = InMemoryFileIndex.bulkListLeafFiles(
       pathsToFetch, hadoopConf, filter, sparkSession)
     discovered.foreach { case (path, leafFiles) =>

@@ -18,13 +18,12 @@
 package org.apache.spark.sql.execution.datasources
 
 import scala.collection.mutable
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
-
 import org.apache.spark.internal.Logging
+import org.apache.spark.security.MultiHDFSConfig
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.{expressions, InternalRow}
+import org.apache.spark.sql.catalyst.{InternalRow, expressions}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.types.{StringType, StructType}
@@ -49,8 +48,9 @@ abstract class PartitioningAwareFileIndex(
 
   override def partitionSchema: StructType = partitionSpec().partitionColumns
 
-  protected val hadoopConf: Configuration =
-    sparkSession.sessionState.newHadoopConfWithOptions(parameters)
+  // TODO: Is not correct?, we should generate that with the configuration of the Job?. But this Index is only used by HIVE
+  protected def hadoopConf(host: Option[String]): Configuration =
+    sparkSession.sessionState.newHadoopConf(host)
 
   protected def leafFiles: mutable.LinkedHashMap[Path, FileStatus]
 
@@ -90,7 +90,8 @@ abstract class PartitioningAwareFileIndex(
       // For each of the root input paths, get the list of files inside them
       rootPaths.flatMap { path =>
         // Make the path qualified (consistent with listLeafFiles and listLeafFilesInParallel).
-        val fs = path.getFileSystem(hadoopConf)
+        val hdfsHost = MultiHDFSConfig.extractHDFSHostFromPath(Option(path.toUri().toString()))
+        val fs = path.getFileSystem(hadoopConf(hdfsHost))
         val qualifiedPathPre = fs.makeQualified(path)
         val qualifiedPath: Path = if (qualifiedPathPre.isRoot && !qualifiedPathPre.isAbsolute) {
           // SPARK-17613: Always append `Path.SEPARATOR` to the end of parent directories,
@@ -216,7 +217,9 @@ abstract class PartitioningAwareFileIndex(
   private def basePaths: Set[Path] = {
     parameters.get(BASE_PATH_PARAM).map(new Path(_)) match {
       case Some(userDefinedBasePath) =>
-        val fs = userDefinedBasePath.getFileSystem(hadoopConf)
+        val hdfsHost =
+          MultiHDFSConfig.extractHDFSHostFromPath(Option(userDefinedBasePath.toUri.toString))
+        val fs = userDefinedBasePath.getFileSystem(hadoopConf(hdfsHost))
         if (!fs.isDirectory(userDefinedBasePath)) {
           throw new IllegalArgumentException(s"Option '$BASE_PATH_PARAM' must be a directory")
         }
@@ -225,7 +228,9 @@ abstract class PartitioningAwareFileIndex(
       case None =>
         rootPaths.map { path =>
           // Make the path qualified (consistent with listLeafFiles and listLeafFilesInParallel).
-          val qualifiedPath = path.getFileSystem(hadoopConf).makeQualified(path)
+          val hdfsHost =
+            MultiHDFSConfig.extractHDFSHostFromPath(Option(path.toUri.toString))
+          val qualifiedPath = path.getFileSystem(hadoopConf(hdfsHost)).makeQualified(path)
           if (leafFiles.contains(qualifiedPath)) qualifiedPath.getParent else qualifiedPath }.toSet
     }
   }

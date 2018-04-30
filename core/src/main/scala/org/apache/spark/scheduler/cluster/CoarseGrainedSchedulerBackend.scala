@@ -150,6 +150,11 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         scheduler.getExecutorsAliveOnHost(host).foreach { exec =>
           killExecutors(exec.toSeq, replace = true, force = true)
         }
+
+      case UpdateDelegationTokens(host, principal, newDelegationTokens) =>
+        executorDataMap.values.foreach { ed =>
+          ed.executorEndpoint.send(UpdateDelegationTokens(host, principal, newDelegationTokens))
+        }
     }
 
     override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -221,7 +226,8 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
       case RetrieveSparkAppConfig =>
         val reply = SparkAppConfig(sparkProperties,
-          SparkEnv.get.securityManager.getIOEncryptionKey())
+          SparkEnv.get.securityManager.getIOEncryptionKey(),
+          fetchHadoopDelegationTokens())
         context.reply(reply)
     }
 
@@ -659,6 +665,11 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
     driverEndpoint.send(KillExecutorsOnHost(host))
     true
   }
+
+  protected def fetchHadoopDelegationTokens(): Option[Map[String, (String, Array[Byte])]] = {
+    None
+  }
+
 }
 
 private[spark] object CoarseGrainedSchedulerBackend {

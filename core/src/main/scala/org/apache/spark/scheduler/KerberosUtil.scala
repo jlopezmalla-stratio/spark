@@ -48,7 +48,7 @@ object KerberosUtil  extends Logging {
 
       val principal = ugi.getUserName
       val namenodes = Set(FileSystem.get(hadoopConf).getHomeDirectory())
-      logInfo(s"Found these HDFS namenodes: $namenodes")
+      logDebug(s"Found these HDFS namenodes: $namenodes")
       val ugiCreds = ugi.getCredentials
       ugi.doAs(new PrivilegedExceptionAction[Unit] {
         override def run() = {
@@ -89,6 +89,19 @@ object KerberosUtil  extends Logging {
       throw new SparkException(errorMessage)
     }
     delegTokenRenewer
+  }
+
+  def useUgi(ugi: UserGroupInformation, hadoopConf: Configuration): Unit = {
+    logDebug(s"Using ugi to execute further operations ${ugi.getUserName}")
+
+    // configure to use tokens for HDFS login
+    logDebug(s"Putting hadoopConf for current user, hadoopConf: ${hadoopConf.get("fs.defaultFS")}")
+    hadoopConf.set("hadoop.security.authentication", "Token")
+    UserGroupInformation.setConfiguration(hadoopConf)
+
+
+    logDebug(s"Setting current user to remote user")
+    UserGroupInformation.setLoginUser(ugi)
   }
 
   def useTokenAuth(tokens: Array[Byte]) {

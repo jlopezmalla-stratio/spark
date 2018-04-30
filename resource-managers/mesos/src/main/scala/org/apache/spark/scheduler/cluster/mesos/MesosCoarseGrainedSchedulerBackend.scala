@@ -22,6 +22,8 @@ import java.util.{Collections, List => JList}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import java.util.concurrent.locks.ReentrantLock
 
+import org.apache.hadoop.security.UserGroupInformation
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -34,7 +36,7 @@ import org.apache.spark.network.shuffle.mesos.MesosExternalShuffleClient
 import org.apache.spark.rpc.RpcEndpointAddress
 import org.apache.spark.scheduler.{SlaveLost, TaskSchedulerImpl}
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
-import org.apache.spark.security.{ConfigSecurity, VaultHelper}
+import org.apache.spark.security.{ConfigSecurity, HDFSConfig, MultiHDFSConfig, VaultHelper}
 import org.apache.spark.util.Utils
 
 
@@ -56,6 +58,13 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
   extends CoarseGrainedSchedulerBackend(scheduler, sc.env.rpcEnv)
   with org.apache.mesos.Scheduler
   with MesosSchedulerUtils {
+
+  private lazy val hadoopDelegationTokenManager: MesosHadoopDelegationTokenManager =
+    new MesosHadoopDelegationTokenManager(
+      conf,
+      MultiHDFSConfig.getUgisAndConfPerHost ++ HDFSConfig.getUgiAndConfBase,
+      driverEndpoint
+    )
 
   // Blacklist a slave after this many failures
   private val MAX_SLAVE_FAILURES = 2
@@ -728,6 +737,18 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       "0.0.0.0"
     } else {
       offer.getHostname
+    }
+  }
+
+  /**
+    * Retrieve for all the hosts (multiHdfs) the principal and token associated to this hdfs
+    * @return
+    */
+  override def fetchHadoopDelegationTokens(): Option[Map[String, (String, Array[Byte])]] = {
+    if (UserGroupInformation.isSecurityEnabled) {
+      Option(hadoopDelegationTokenManager.getAllTokens())
+    } else {
+      None
     }
   }
 }

@@ -38,9 +38,8 @@ import org.apache.spark.sql.types.StructType
 class CatalogFileIndex(
     sparkSession: SparkSession,
     val table: CatalogTable,
+    hadoopConf: Configuration,
     override val sizeInBytes: Long) extends FileIndex {
-
-  protected val hadoopConf: Configuration = sparkSession.sessionState.newHadoopConf()
 
   /** Globally shared (not exclusive to this table) cache for file statuses to speed up listing. */
   private val fileStatusCache = FileStatusCache.getOrCreate(sparkSession)
@@ -82,10 +81,16 @@ class CatalogFileIndex(
       val partitionSpec = PartitionSpec(partitionSchema, partitions)
       val timeNs = System.nanoTime() - startTime
       new PrunedInMemoryFileIndex(
-        sparkSession, new Path(baseLocation.get), fileStatusCache, partitionSpec, Option(timeNs))
+        sparkSession,
+        new Path(baseLocation.get),
+        fileStatusCache,
+        partitionSpec,
+        Option(timeNs),
+        hadoopConf
+      )
     } else {
       new InMemoryFileIndex(
-        sparkSession, rootPaths, table.storage.properties, partitionSchema = None)
+        sparkSession, rootPaths, table.storage.properties, partitionSchema = None, hadoopConf)
     }
   }
 
@@ -114,10 +119,13 @@ private class PrunedInMemoryFileIndex(
     tableBasePath: Path,
     fileStatusCache: FileStatusCache,
     override val partitionSpec: PartitionSpec,
-    override val metadataOpsTimeNs: Option[Long])
+    override val metadataOpsTimeNs: Option[Long],
+    hadoopConf: Configuration)
   extends InMemoryFileIndex(
     sparkSession,
     partitionSpec.partitions.map(_.path),
     Map.empty,
     Some(partitionSpec.partitionColumns),
-    fileStatusCache)
+    hadoopConf,
+    fileStatusCache
+  )

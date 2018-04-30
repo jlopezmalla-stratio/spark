@@ -124,6 +124,10 @@ private[spark] class CoarseGrainedExecutorBackend(
           executor.stop()
         }
       }.start()
+
+    case UpdateDelegationTokens(host, principal, tokenBytes) =>
+      logInfo(s"Received tokens of $host with principal $principal ${tokenBytes.length} bytes")
+      SparkHadoopUtil.get.addDelegationTokens(host, principal, tokenBytes)
   }
 
   override def onDisconnected(remoteAddress: RpcAddress): Unit = {
@@ -219,6 +223,14 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
         logInfo("Will periodically update credentials from: " +
           driverConf.get("spark.yarn.credentials.file"))
         SparkHadoopUtil.get.startCredentialUpdater(driverConf)
+      }
+
+      cfg.hadoopDelegationCreds.foreach { tokens =>
+        tokens.foreach {
+          case (host, pair) =>
+            val(principal, token) = pair
+            SparkHadoopUtil.get.addDelegationTokens(host, principal, token)
+        }
       }
 
       val env = SparkEnv.createExecutorEnv(

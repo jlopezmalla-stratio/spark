@@ -32,7 +32,9 @@ object KerberosConfig extends Logging{
       val (keytab64, principal) =
         VaultHelper.getKeytabPrincipalFromVault(kerberosVaultPath).get
 
-      val keytabPath = getKeytabPrincipal(keytab64, principal)
+      val pathToWrite = s"${ConfigSecurity.secretsFolder}/$principal.keytab"
+
+      val keytabPath = getKeytabPrincipal(keytab64, principal, pathToWrite)
       Map("principal" -> principal, "keytabPath" -> keytabPath)
 
     } getOrElse {
@@ -42,10 +44,13 @@ object KerberosConfig extends Logging{
     }
   }
 
-  private def getKeytabPrincipal(keytab64: String, principal: String): String = {
+  private[spark] def getKeytabPrincipal(
+                                         keytab64: String,
+                                         principal: String,
+                                         path: String
+                                       ): String = {
     val bytes = DatatypeConverter.parseBase64Binary(keytab64)
-    val kerberosSecretFile = Files.createFile(Paths.get(
-      s"${ConfigSecurity.secretsFolder}/$principal.keytab"),
+    val kerberosSecretFile = Files.createFile(Paths.get(path),
       PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
     kerberosSecretFile.toFile.deleteOnExit() // just to be sure
     val writePath = Files.write(kerberosSecretFile, bytes)

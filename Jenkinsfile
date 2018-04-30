@@ -8,6 +8,7 @@ hose {
     DEVTIMEOUT = 300
     RELEASETIMEOUT = 200
     BUILDTOOLVERSION = '3.5.0'
+    MAVEN_THREADSPERCORE = 2
     PKGMODULESNAMES = ['stratio-spark']
 
     DEV = { config ->

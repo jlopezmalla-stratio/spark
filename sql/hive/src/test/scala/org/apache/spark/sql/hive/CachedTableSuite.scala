@@ -316,7 +316,13 @@ class CachedTableSuite extends QueryTest with SQLTestUtils with TestHiveSingleto
     withTable("test") {
       sql("CREATE TABLE test(i int) PARTITIONED BY (p int) STORED AS parquet")
       val tableMeta = spark.sharedState.externalCatalog.getTable("default", "test")
-      val catalogFileIndex = new CatalogFileIndex(spark, tableMeta, 0)
+      val catalogFileIndex =
+        new CatalogFileIndex(
+          spark,
+          tableMeta,
+          spark.sessionState.newHadoopConf(),
+          0
+        )
 
       val dataSchema = StructType(tableMeta.schema.filterNot { f =>
         tableMeta.partitionColumnNames.contains(f.name)
@@ -334,7 +340,13 @@ class CachedTableSuite extends QueryTest with SQLTestUtils with TestHiveSingleto
 
       assert(spark.sharedState.cacheManager.lookupCachedData(plan).isDefined)
 
-      val sameCatalog = new CatalogFileIndex(spark, tableMeta, 0)
+      val sameCatalog =
+        new CatalogFileIndex(
+          spark,
+          tableMeta,
+          spark.sessionState.newHadoopConf(),
+          0
+        )
       val sameRelation = HadoopFsRelation(
         location = sameCatalog,
         partitionSchema = tableMeta.partitionSchema,

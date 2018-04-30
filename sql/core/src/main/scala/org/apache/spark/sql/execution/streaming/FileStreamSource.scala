@@ -188,7 +188,14 @@ class FileStreamSource(
 
   private def allFilesUsingInMemoryFileIndex() = {
     val globbedPaths = SparkHadoopUtil.get.globPathIfNecessary(qualifiedBasePath)
-    val fileIndex = new InMemoryFileIndex(sparkSession, globbedPaths, options, Some(new StructType))
+    val fileIndex =
+      new InMemoryFileIndex(
+        sparkSession,
+        globbedPaths,
+        options,
+        Some(new StructType),
+        sparkSession.sessionState.newHadoopConfWithOptions(options)
+      )
     fileIndex.allFiles()
   }
 

@@ -17,7 +17,7 @@
 
 package org.apache.spark.deploy
 
-import java.io.IOException
+import java.io._
 import java.security.PrivilegedExceptionAction
 import java.text.DateFormat
 import java.util.{Arrays, Comparator, Date, Locale}
@@ -25,19 +25,19 @@ import java.util.{Arrays, Comparator, Date, Locale}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.control.NonFatal
-
 import com.google.common.primitives.Longs
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path, PathFilter}
 import org.apache.hadoop.fs.permission.FsAction
 import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.security.SaslRpcServer.AuthMethod
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier
-
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config._
 import org.apache.spark.util.Utils
 
 /**
@@ -120,11 +120,80 @@ class SparkHadoopUtil extends Logging {
     hadoopConf
   }
 
+  // Save hdfsConfiguration, principal and token for each hdfs
+  private val multiHdfs: mutable.Map[String, (String, Credentials)] = mutable.Map.empty
+
+  /**
+    * Retrieve from the executor, the ugi with authentication Token to go to the host specified
+    * @param host
+    * @return
+    */
+  def getCredentials(host: String): Option[UserGroupInformation] = {
+    multiHdfs.get(host).map {
+      case (principal, credential) =>
+        logInfo(s"Found delegation tokens for $host: principal $principal")
+        val ugi = UserGroupInformation.createRemoteUser(principal, AuthMethod.TOKEN)
+        ugi.addCredentials(credential)
+        ugi
+    }
+  }
+
+
+  /**
+    * Add or overwrite current user's credentials with serialized delegation tokens,
+    * also confirms correct hadoop configuration is set.
+    */
+  private[spark] def addDelegationTokens(
+                                          host: String,
+                                          principal: String,
+                                          tokens: Array[Byte]
+                                        ) {
+    logInfo(s"Received delegation tokens, hadoopConf, and principal for host $host")
+    val creds = deserialize(tokens)
+
+    multiHdfs.put(host, (principal, creds))
+  }
+
+  def serialize(creds: Credentials): Array[Byte] = {
+    val byteStream = new ByteArrayOutputStream
+    val dataStream = new DataOutputStream(byteStream)
+    creds.writeTokenStorageToStream(dataStream)
+    byteStream.toByteArray
+  }
+
+  def deserialize(tokenBytes: Array[Byte]): Credentials = {
+    val tokensBuf = new ByteArrayInputStream(tokenBytes)
+
+    val creds = new Credentials()
+    creds.readTokenStorageStream(new DataInputStream(tokensBuf))
+    creds
+  }
+
+  /**
+    * Given an expiration date for the current set of credentials, calculate the time when new
+    * credentials should be created.
+    *
+    * @param expirationDate Drop-dead expiration date
+    * @param conf Spark configuration
+    * @return Timestamp when new credentials should be created.
+    */
+  private[spark] def nextCredentialRenewalTime(expirationDate: Long, conf: SparkConf): Long = {
+    val ct = System.currentTimeMillis
+
+    val ratio = conf.get(CREDENTIALS_RENEWAL_INTERVAL_RATIO)
+    logDebug(s"Ratio: $ratio")
+    logDebug(s"Expiration Date: $expirationDate")
+    val expiration = (ct + (ratio * (expirationDate - ct))).toLong
+
+    logDebug(s"Expiration setted: $expiration")
+    expiration
+  }
+
   /**
    * Add any user credentials to the job conf which are necessary for running on a secure Hadoop
    * cluster.
    */
-  def addCredentials(conf: JobConf) {}
+  def addCredentials(conf: JobConf): Unit = {}
 
   def isYarnMode(): Boolean = { false }
 

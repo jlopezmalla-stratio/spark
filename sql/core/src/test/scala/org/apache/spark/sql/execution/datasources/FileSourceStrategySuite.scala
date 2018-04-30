@@ -397,7 +397,9 @@ class FileSourceStrategySuite extends QueryTest with SharedSQLContext with Predi
           sparkSession = spark,
           rootPathsSpecified = Seq(new Path(tempDir)),
           parameters = Map.empty[String, String],
-          partitionSchema = None)
+          partitionSchema = None,
+          spark.sessionState.newHadoopConf()
+        )
         // This should not fail.
         fileCatalog.listLeafFiles(Seq(new Path(tempDir)))
 
