@@ -42,7 +42,7 @@ Feature: [Spark Performance Tests] Spark performance tests
       |   $.appArgs[3]  |  UPDATE  | /tmp | n/a     |
       |   $.appResource  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/tpcds-queries-${COVERAGE_VERSION}.jar | n/a     |
       |   $.sparkProperties['spark.jars']  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/tpcds-queries-${COVERAGE_VERSION}.jar | n/a     |
-      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION} | n/a     |
+      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DRIVER_DOCKER_IMAGE:-qa.stratio.com/stratio/spark-stratio-driver}:${STRATIO_SPARK_VERSION} | n/a     |
       |   $.sparkProperties['spark.mesos.driverEnv.SPARK_SECURITY_HDFS_CONF_URI']  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/configs/${CLUSTER_ID} | n/a     |
       |   $.sparkProperties['spark.executor.cores']  |  UPDATE  | !{CORES_PER_EXECUTOR} | n/a     |
       |   $.sparkProperties['spark.cores.max']  |  UPDATE  | !{CORES} | n/a     |

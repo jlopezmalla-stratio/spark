@@ -5,12 +5,20 @@
     "cpus": 1,
     "mem": 1024,
     "user": "root",
-    "log-level": "INFO",
-    "networkName": "stratio",
-    "enable_mesos_security": true,
-    "vault_host": "vault.service.paas.labs.stratio.com",
-    "vault_port": 8200,
-    "vault_protocol": "https",
-    "vault_appRole": "open"
+    "log_level": "INFO"
+  },
+  "security": {
+    "mesos": {
+      "secured_mesos": true,
+      "spark_security_mesos_enable": true,
+      "spark_security_mesos_vault_path": "/v1/userland/passwords/spark-fw/mesos"
+    },
+    "calico_network_name": "stratio",
+    "vault": {
+      "host": "vault.service.paas.labs.stratio.com",
+      "protocol": "https",
+      "port": 8200,
+      "app_role": "open"
+    }
   }
 }

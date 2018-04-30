@@ -151,6 +151,8 @@ object ConfigSecurity extends Logging {
         DBConfig.prepareEnvironment(options)
       case ("mesos", options) =>
         MesosConfig.prepareEnvironment(options)
+      case ("multi", options) =>
+        MultiHDFSConfig.prepareEnvironment(options)
       case _ => Map.empty[String, String]
     }
   }

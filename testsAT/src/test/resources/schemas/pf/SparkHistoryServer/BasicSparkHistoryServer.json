@@ -3,12 +3,12 @@
     "name": "history-server",
     "cpus": 1,
     "mem": 1024,
-    "log-dir": "/tmp/logs/history",
+    "log_dir": "/tmp/logs/history",
     "user": "root",
     "cleaner": {
       "enabled": false,
       "interval": "1d",
-      "max-age": "7d"
+      "max_age": "7d"
     }
   },
   "security": {
@@ -17,26 +17,16 @@
       "protocol": "https",
       "host": "vault.service.paas.labs.stratio.com",
       "port": 8200,
-      "app_role": "open",
-      "instance": "history-server",
-      "fqdn": "history-server"
+      "app_role": "open"
+    },
+    "kerberos": {
+      "spark_security_kerberos_enable": true,
+      "spark_security_kerberos_vault_path": "/v1/userland/kerberos/crossdata-1",
+      "spark_security_hdfs_enable": true,
+      "spark_security_hdfs_conf_uri": "http://spark-coverage.marathon.mesos:9000/configs/megadev"
     }
   },
   "hdfs": {
-    "hadoop_conf_dir": "/etc/sds/hadoop",
-    "hdfs_fs_defaultfs": "10.200.0.74:8020",
-    "hdfs_hadoop_tmp_dir": "/tmp",
-    "hdfs_hadoop_security_authorization": true,
-    "hdfs_hadoop_security_authentication": "kerberos",
-    "hdfs_dfs_permissions_enabled": false,
-    "hdfs_dfs_block_access_token_enable": true,
-    "hdfs_dfs_http_policy": "HTTPS_ONLY",
-    "hdfs_dfs_https_port": 50070,
-    "kerberos": {
-      "enable": true,
-      "realm": "DEMO.STRATIO.COM",
-      "kdc_host": "idp.integration.labs.stratio.com",
-      "kAdmin_host": "idp.integration.labs.stratio.com"
-    }
+    "hadoop_conf_dir": "/tmp/hadoop"
   }
 }

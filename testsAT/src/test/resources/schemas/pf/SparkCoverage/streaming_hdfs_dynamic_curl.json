@@ -10,7 +10,7 @@
   "sparkProperties": {
     "spark.jars": "$HDFS_STREAMING_JAR_URL",
     "spark.app.name": "AT-hdfs-dynamic",
-    "spark.mesos.executor.docker.image": "$SPARK_IMAGE",
+    "spark.mesos.executor.docker.image": "$SPARK_DRIVER_DOCKER_IMAGE",
     "spark.mesos.executor.docker.volumes": "/etc/pki/ca-trust/extracted/java/cacerts/:/usr/lib/jvm/jre1.8.0_112/lib/security/cacerts:ro,/var/lib/spark_data:/tmp:rw,/etc/resolv.conf:/etc/resolv.conf:ro",
     "spark.driver.supervise": "false",
     "spark.secret.vault.role": "open",

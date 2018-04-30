@@ -30,9 +30,11 @@ private[spark] object CoarseGrainedClusterMessages {
 
   case object RetrieveSparkAppConfig extends CoarseGrainedClusterMessage
 
+  // Credentials with its principal for each host
   case class SparkAppConfig(
       sparkProperties: Seq[(String, String)],
-      ioEncryptionKey: Option[Array[Byte]])
+      ioEncryptionKey: Option[Array[Byte]],
+      hadoopDelegationCreds: Option[Map[String, (String, Array[Byte])]])
     extends CoarseGrainedClusterMessage
 
   case object RetrieveLastAllocatedExecutorId extends CoarseGrainedClusterMessage
@@ -52,6 +54,9 @@ private[spark] object CoarseGrainedClusterMessages {
 
   case class RegisterExecutorFailed(message: String) extends CoarseGrainedClusterMessage
     with RegisterExecutorResponse
+
+  case class UpdateDelegationTokens(hdfsHost: String, principal: String, tokens: Array[Byte])
+    extends CoarseGrainedClusterMessage
 
   // Executors to driver
   case class RegisterExecutor(

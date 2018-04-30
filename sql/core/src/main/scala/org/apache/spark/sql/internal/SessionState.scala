@@ -21,9 +21,11 @@ import java.io.File
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-
 import org.apache.spark.SparkContext
 import org.apache.spark.annotation.{Experimental, InterfaceStability}
+import org.apache.spark.internal.Logging
+import org.apache.spark.scheduler.KerberosFunction
+import org.apache.spark.security.MultiHDFSConfig
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}
 import org.apache.spark.sql.catalyst.catalog._
@@ -68,14 +70,47 @@ private[sql] class SessionState(
     val listenerManager: ExecutionListenerManager,
     val resourceLoader: SessionResourceLoader,
     createQueryExecution: LogicalPlan => QueryExecution,
-    createClone: (SparkSession, SessionState) => SessionState) {
+    createClone: (SparkSession, SessionState) => SessionState) extends Logging {
 
-  def newHadoopConf(): Configuration = SessionState.newHadoopConf(
-    sharedState.sparkContext.hadoopConfiguration,
-    conf)
+  def newHadoopConf(host: Option[String] = None): Configuration = {
+
+    val baseHadoopConf: Configuration = host.flatMap { hdfsHost =>
+      MultiHDFSConfig.getHadoopConfForHost(hdfsHost)
+    }.getOrElse {
+      sharedState.sparkContext.hadoopConfiguration
+    }
+
+    SessionState.newHadoopConf(baseHadoopConf, conf)
+  }
 
   def newHadoopConfWithOptions(options: Map[String, String]): Configuration = {
-    val hadoopConf = newHadoopConf()
+
+    val paths = options.get("path").orElse(options.get("paths"))
+
+    val host: Option[String] =
+      MultiHDFSConfig.extractHDFSHostFromPath(paths)
+
+    logDebug(s"Creating hdfs conf for host: $host")
+
+    val hadoopConf = newHadoopConf(host)
+    options.foreach { case (k, v) =>
+      if ((v ne null) && k != "path" && k != "paths") {
+        hadoopConf.set(k, v)
+      }
+    }
+    hadoopConf
+  }
+
+  def newHadoopConfWithOptionsAndBaseConf(
+                                           options: Map[String, String],
+                                           baseConf: Configuration
+                                         ): Configuration = {
+
+    val fsName = baseConf.get("fs.defaultFS")
+
+    logDebug(s"Creating conf for options and baseConf: $fsName, " +
+      s"path options: ${options.get("path")}")
+    val hadoopConf = SessionState.newHadoopConf(baseConf, conf)
     options.foreach { case (k, v) =>
       if ((v ne null) && k != "path" && k != "paths") {
         hadoopConf.set(k, v)

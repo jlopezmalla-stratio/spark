@@ -40,7 +40,7 @@ class FileIndexSuite extends SharedSQLContext {
       stringToFile(file, "text")
 
       val path = new Path(file.getCanonicalPath)
-      val catalog = new InMemoryFileIndex(spark, Seq(path), Map.empty, None) {
+      val catalog = new InMemoryFileIndex(spark, Seq(path), Map.empty, None, spark.sessionState.newHadoopConf()) {
         def leafFilePaths: Seq[Path] = leafFiles.keys.toSeq
         def leafDirPaths: Seq[Path] = leafDirToChildrenFiles.keys.toSeq
       }
@@ -64,11 +64,11 @@ class FileIndexSuite extends SharedSQLContext {
       require(qualifiedFilePath.toString.startsWith("file:"))
 
       val catalog1 = new InMemoryFileIndex(
-        spark, Seq(unqualifiedDirPath), Map.empty, None)
+        spark, Seq(unqualifiedDirPath), Map.empty, None, spark.sessionState.newHadoopConf())
       assert(catalog1.allFiles.map(_.getPath) === Seq(qualifiedFilePath))
 
       val catalog2 = new InMemoryFileIndex(
-        spark, Seq(unqualifiedFilePath), Map.empty, None)
+        spark, Seq(unqualifiedFilePath), Map.empty, None, spark.sessionState.newHadoopConf())
       assert(catalog2.allFiles.map(_.getPath) === Seq(qualifiedFilePath))
 
     }
@@ -79,7 +79,7 @@ class FileIndexSuite extends SharedSQLContext {
       val deletedFolder = new File(dir, "deleted")
       assert(!deletedFolder.exists())
       val catalog1 = new InMemoryFileIndex(
-        spark, Seq(new Path(deletedFolder.getCanonicalPath)), Map.empty, None)
+        spark, Seq(new Path(deletedFolder.getCanonicalPath)), Map.empty, None, spark.sessionState.newHadoopConf())
       // doesn't throw an exception
       assert(catalog1.listLeafFiles(catalog1.rootPaths).isEmpty)
     }
@@ -95,7 +95,7 @@ class FileIndexSuite extends SharedSQLContext {
         }
         HiveCatalogMetrics.reset()
         assert(HiveCatalogMetrics.METRIC_PARALLEL_LISTING_JOB_COUNT.getCount() == 0)
-        new InMemoryFileIndex(spark, topLevelDirs, Map.empty, None)
+        new InMemoryFileIndex(spark, topLevelDirs, Map.empty, None, spark.sessionState.newHadoopConf())
         assert(HiveCatalogMetrics.METRIC_PARALLEL_LISTING_JOB_COUNT.getCount() == expectedNumPar)
       }
     }
@@ -109,7 +109,7 @@ class FileIndexSuite extends SharedSQLContext {
         }
         HiveCatalogMetrics.reset()
         assert(HiveCatalogMetrics.METRIC_PARALLEL_LISTING_JOB_COUNT.getCount() == 0)
-        new InMemoryFileIndex(spark, Seq(new Path(dir.getCanonicalPath)), Map.empty, None)
+        new InMemoryFileIndex(spark, Seq(new Path(dir.getCanonicalPath)), Map.empty, None, spark.sessionState.newHadoopConf())
         assert(HiveCatalogMetrics.METRIC_PARALLEL_LISTING_JOB_COUNT.getCount() == expectedNumPar)
       }
     }
@@ -131,7 +131,7 @@ class FileIndexSuite extends SharedSQLContext {
         }
         HiveCatalogMetrics.reset()
         assert(HiveCatalogMetrics.METRIC_PARALLEL_LISTING_JOB_COUNT.getCount() == 0)
-        new InMemoryFileIndex(spark, Seq(new Path(dir.getCanonicalPath)), Map.empty, None)
+        new InMemoryFileIndex(spark, Seq(new Path(dir.getCanonicalPath)), Map.empty, None, spark.sessionState.newHadoopConf())
         assert(HiveCatalogMetrics.METRIC_PARALLEL_LISTING_JOB_COUNT.getCount() == expectedNumPar)
       }
     }
@@ -185,12 +185,12 @@ class FileIndexSuite extends SharedSQLContext {
   test("InMemoryFileIndex with empty rootPaths when PARALLEL_PARTITION_DISCOVERY_THRESHOLD" +
     "is a nonpositive number") {
     withSQLConf(SQLConf.PARALLEL_PARTITION_DISCOVERY_THRESHOLD.key -> "0") {
-      new InMemoryFileIndex(spark, Seq.empty, Map.empty, None)
+      new InMemoryFileIndex(spark, Seq.empty, Map.empty, None,spark.sessionState.newHadoopConf())
     }
 
     val e = intercept[IllegalArgumentException] {
       withSQLConf(SQLConf.PARALLEL_PARTITION_DISCOVERY_THRESHOLD.key -> "-1") {
-        new InMemoryFileIndex(spark, Seq.empty, Map.empty, None)
+        new InMemoryFileIndex(spark, Seq.empty, Map.empty, None, spark.sessionState.newHadoopConf())
       }
     }.getMessage
     assert(e.contains("The maximum number of paths allowed for listing files at " +
@@ -203,7 +203,7 @@ class FileIndexSuite extends SharedSQLContext {
       val dirPath = new Path(dir.getAbsolutePath)
       val fs = dirPath.getFileSystem(spark.sessionState.newHadoopConf())
       val catalog =
-        new InMemoryFileIndex(spark, Seq(dirPath), Map.empty, None, fileStatusCache) {
+        new InMemoryFileIndex(spark, Seq(dirPath), Map.empty, None, spark.sessionState.newHadoopConf(), fileStatusCache) {
           def leafFilePaths: Seq[Path] = leafFiles.keys.toSeq
           def leafDirPaths: Seq[Path] = leafDirToChildrenFiles.keys.toSeq
         }

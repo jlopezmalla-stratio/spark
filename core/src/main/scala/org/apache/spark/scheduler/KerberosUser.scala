@@ -17,6 +17,7 @@
 
 package org.apache.spark.scheduler
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.spark.SparkConf
@@ -25,10 +26,22 @@ import org.apache.spark.internal.Logging
 
 object KerberosUser extends Logging {
 
+  var conf: Option[Configuration] = None
+  var ugi: Option[UserGroupInformation] = None
+
   def securize (principal: String, keytab: String) : Unit = {
     val hadoopConf = SparkHadoopUtil.get.newConfiguration(new SparkConf())
     hadoopConf.set("hadoop.security.authentication", "Kerberos")
     UserGroupInformation.setConfiguration(hadoopConf)
     UserGroupInformation.loginUserFromKeytab(principal, keytab)
+    conf = Option(hadoopConf)
+    ugi = Option(UserGroupInformation.getLoginUser)
   }
+
+  private[spark] def baseUgiAndConf: Option[(UserGroupInformation, Configuration)] =
+    for {
+      finalUgi <- ugi
+      finalConf <- conf
+    } yield(finalUgi, finalConf)
+
 }

@@ -24,7 +24,7 @@ Feature: [Fault Tolerance test] Dispatcher Dropdowns
     When I send a 'POST' request to '/service/${SPARK_FW_NAME}/v1/submissions/create' based on 'schemas/pf/SparkCoverage/kafka_curl.json' as 'json' with:
       |   $.appResource  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/kafka-${COVERAGE_VERSION}.jar | n/a     |
       |   $.sparkProperties['spark.jars']  |  UPDATE  | http://spark-coverage.marathon.mesos:9000/jobs/kafka-${COVERAGE_VERSION}.jar | n/a     |
-      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION} | n/a     |
+      |   $.sparkProperties['spark.mesos.executor.docker.image']  |  UPDATE  | ${SPARK_DRIVER_DOCKER_IMAGE:-qa.stratio.com/stratio/spark-stratio-driver}:${STRATIO_SPARK_VERSION} | n/a     |
       |   $.appArgs[0]  |  UPDATE  | gosec1.node.paas.labs.stratio.com:9092 | n/a     |
 
     Then the service response status must be '200' and its response must contain the text '"success" : true'
@@ -53,7 +53,7 @@ Feature: [Fault Tolerance test] Dispatcher Dropdowns
 
     #Start image from JSON
     And I run 'dcos package describe --app --options=/dcos/SparkDispatcherInstallation.json spark-dispatcher > /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
-    And I run 'sed -i -e 's|"image":.*|"image": "${SPARK_DOCKER_IMAGE}:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
+    And I run 'sed -i -e 's|"image":.*|"image": "${SPARK_DOCKER_IMAGE:-qa.stratio.com/stratio/stratio-spark}:${STRATIO_SPARK_VERSION}",|g' /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
     And I run 'dcos marathon app add /dcos/SparkDispatcherInstallationMarathon.json' in the ssh connection
 
     #Check Spark-fw is Running

@@ -18,11 +18,12 @@
 package org.apache.spark.sql.execution
 
 import scala.collection.mutable.ArrayBuffer
-
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{BlockLocation, FileStatus, LocatedFileStatus, Path}
-
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import org.apache.spark.scheduler.KerberosFunction
+import org.apache.spark.security.{HDFSConfig, MultiHDFSConfig}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -30,13 +31,13 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, UnknownPartitioning}
-import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.{PartitionedFile, _}
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat => ParquetSource}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SerializableConfiguration, Utils}
 
 trait DataSourceScanExec extends LeafExecNode with CodegenSupport {
   val relation: BaseRelation
@@ -281,15 +282,79 @@ case class FileSourceScanExec(
   }
 
   private lazy val inputRDD: RDD[InternalRow] = {
-    val readFile: (PartitionedFile) => Iterator[InternalRow] =
-      relation.fileFormat.buildReaderWithPartitionValues(
-        sparkSession = relation.sparkSession,
-        dataSchema = relation.dataSchema,
-        partitionSchema = relation.partitionSchema,
-        requiredSchema = requiredSchema,
-        filters = pushedDownFilters,
-        options = relation.options,
-        hadoopConf = relation.sparkSession.sessionState.newHadoopConfWithOptions(relation.options))
+
+    val readFile: (PartitionedFile) => Iterator[InternalRow] = {
+
+      val allHadoopConfBroadcasted: Map[String, Broadcast[SerializableConfiguration]] =
+        (HDFSConfig.getUgiAndConfBase ++ MultiHDFSConfig.getUgisAndConfPerHost).map {
+          case (host, (_, conf)) =>
+            val finalHadoopConf =
+              relation
+              .sparkSession.sessionState.newHadoopConfWithOptionsAndBaseConf(relation.options, conf)
+
+            logDebug(s"Creating conf to pass in readFile function for host $host")
+
+            host ->
+              relation.sparkSession.sparkContext.broadcast(
+                new SerializableConfiguration(finalHadoopConf)
+              )
+        }
+
+      logDebug(s"Creating readFilefunction for files ${relation.inputFiles.mkString("\n")}")
+
+      val host = relation.inputFiles.headOption.flatMap { head =>
+        MultiHDFSConfig.extractHDFSHostFromPath(Option(head))
+      }
+
+      val hadoopConf = host.map { h =>
+        logDebug(s"Getting conf from prepared broadcasted configurations. Host $h")
+        allHadoopConfBroadcasted(h).value.value
+      }.getOrElse {
+        logDebug(s"If host is not found in the input files, use default creation")
+        relation
+          .sparkSession.sessionState.newHadoopConfWithOptions(relation.options)
+      }
+
+
+      val readFileFunction: (PartitionedFile) => Iterator[InternalRow] = {
+        relation.fileFormat.buildReaderWithPartitionValues(
+          sparkSession = relation.sparkSession,
+          dataSchema = relation.dataSchema,
+          partitionSchema = relation.partitionSchema,
+          requiredSchema = requiredSchema,
+          filters = pushedDownFilters,
+          options = relation.options,
+          hadoopConf = hadoopConf
+        )
+      }
+
+      // Final function
+      { partitionedFile : PartitionedFile =>
+
+        val filePath = partitionedFile.filePath
+
+        logDebug(s"Read file function for path $filePath")
+
+        val hdfsHost = MultiHDFSConfig.extractHDFSHostFromPath(Option(filePath))
+
+        hdfsHost.map { host =>
+          logDebug(s"Found hdfs host in read file function: $hdfsHost for path $filePath")
+
+          val hadoopConf = allHadoopConfBroadcasted(host)
+
+          logDebug(s"Found configuration in read file function: $hadoopConf. " +
+            s"For path: $filePath")
+
+          KerberosFunction.executeSecure(hadoopConf.value)(readFileFunction)(partitionedFile)
+
+        }.getOrElse {
+          logDebug("Not found hdfs host in file. Executing normally")
+          readFileFunction(partitionedFile)
+        }
+
+
+      }
+    }
 
     relation.bucketSpec match {
       case Some(bucketing) if relation.sparkSession.sessionState.conf.bucketingEnabled =>

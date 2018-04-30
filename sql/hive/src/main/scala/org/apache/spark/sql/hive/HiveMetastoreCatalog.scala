@@ -156,7 +156,12 @@ private[hive] class HiveMetastoreCatalog(sparkSession: SparkSession) extends Log
         val logicalRelation = cached.getOrElse {
           val sizeInBytes = relation.stats(sparkSession.sessionState.conf).sizeInBytes.toLong
           val fileIndex = {
-            val index = new CatalogFileIndex(sparkSession, relation.tableMeta, sizeInBytes)
+            val index = new CatalogFileIndex(
+              sparkSession,
+              relation.tableMeta,
+              sparkSession.sessionState.newHadoopConfWithOptions(options),
+              sizeInBytes
+            )
             if (lazyPruningEnabled) {
               index
             } else {
@@ -235,7 +240,13 @@ private[hive] class HiveMetastoreCatalog(sparkSession: SparkSession) extends Log
         s"$inferenceMode)")
       val fileIndex = fileIndexOpt.getOrElse {
         val rootPath = new Path(relation.tableMeta.location)
-        new InMemoryFileIndex(sparkSession, Seq(rootPath), options, None)
+        new InMemoryFileIndex(
+          sparkSession,
+          Seq(rootPath),
+          options,
+          None,
+          sparkSession.sessionState.newHadoopConfWithOptions(options)
+        )
       }
 
       val inferredSchema = fileFormat

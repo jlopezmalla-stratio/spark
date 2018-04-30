@@ -6,7 +6,7 @@ Feature: [Install Spark Coverage] Installing Spark Coverage
 
   Scenario:[Spark dispatcher Installation][01] Installing Spark Coverage (for testing purposes)
     Given I create file 'SparkCoverage.json' based on 'schemas/pf/SparkCoverage/SparkCoverage.json' as 'json' with:
-      |   $.container.docker.image  |  UPDATE  | ${SPARK_COVERAGE_IMAGE}:${COVERAGE_VERSION} | n/a     |
+      |   $.container.docker.image  |  UPDATE  | ${SPARK_COVERAGE_IMAGE:-qa.stratio.com/stratio/stratio-spark-coverage}:${COVERAGE_VERSION} | n/a     |
 
     When I outbound copy 'target/test-classes/SparkCoverage.json' through a ssh connection to '/dcos'
 

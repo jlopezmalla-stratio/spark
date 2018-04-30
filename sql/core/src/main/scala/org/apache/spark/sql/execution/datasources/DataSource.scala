@@ -19,18 +19,15 @@ package org.apache.spark.sql.execution.datasources
 
 import java.util.{Locale, ServiceConfigurationError, ServiceLoader}
 
-import scala.collection.JavaConverters._
-import scala.language.{existentials, implicitConversions}
-import scala.util.{Failure, Success, Try}
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-
+import org.apache.hadoop.security.UserGroupInformation
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
+import org.apache.spark.scheduler.KerberosFunction
+import org.apache.spark.security.MultiHDFSConfig
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogStorageFormat, CatalogTable, CatalogUtils}
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.execution.datasources.jdbc.JdbcRelationProvider
@@ -42,6 +39,10 @@ import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.types.{CalendarIntervalType, StructType}
 import org.apache.spark.sql.util.SchemaUtils
 import org.apache.spark.util.Utils
+
+import scala.collection.JavaConverters._
+import scala.language.{existentials, implicitConversions}
+import scala.util.{Failure, Success, Try}
 
 /**
  * The main class responsible for representing a pluggable Data Source in Spark SQL. In addition to
@@ -119,14 +120,14 @@ case class DataSource(
     // never have to materialize the lazy val below
     lazy val tempFileIndex = {
       val allPaths = caseInsensitiveOptions.get("path") ++ paths
-      val hadoopConf = sparkSession.sessionState.newHadoopConf()
+      val hadoopConf = sparkSession.sessionState.newHadoopConfWithOptions(options)
       val globbedPaths = allPaths.toSeq.flatMap { path =>
         val hdfsPath = new Path(path)
         val fs = hdfsPath.getFileSystem(hadoopConf)
         val qualified = hdfsPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
         SparkHadoopUtil.get.globPathIfNecessary(fs, qualified)
       }.toArray
-      new InMemoryFileIndex(sparkSession, globbedPaths, options, None, fileStatusCache)
+      new InMemoryFileIndex(sparkSession, globbedPaths, options, None, hadoopConf, fileStatusCache)
     }
     val partitionSchema = if (partitionColumns.isEmpty) {
       // Try to infer partitioning, because no DataSource in the read path provides the partitioning
@@ -320,57 +321,80 @@ case class DataSource(
       case (format: FileFormat, _)
           if FileStreamSink.hasMetadata(
             caseInsensitiveOptions.get("path").toSeq ++ paths,
-            sparkSession.sessionState.newHadoopConf()) =>
-        val basePath = new Path((caseInsensitiveOptions.get("path").toSeq ++ paths).head)
-        val fileCatalog = new MetadataLogFileIndex(sparkSession, basePath)
-        val dataSchema = userSpecifiedSchema.orElse {
-          format.inferSchema(
-            sparkSession,
-            caseInsensitiveOptions,
-            fileCatalog.allFiles())
-        }.getOrElse {
-          throw new AnalysisException(
-            s"Unable to infer schema for $format at ${fileCatalog.allFiles().mkString(",")}. " +
+            getUgiAndConf(caseInsensitiveOptions.get("path").toSeq ++ paths)._2,
+            getUgiAndConf(caseInsensitiveOptions.get("path").toSeq ++ paths)._1) =>
+
+        val (ugi, hadoopConf) = getUgiAndConf(caseInsensitiveOptions.get("path") ++ paths)
+
+        KerberosFunction.executeWithUgi(ugi) {
+          val basePath = new Path((caseInsensitiveOptions.get("path").toSeq ++ paths).head)
+          val fileCatalog = new MetadataLogFileIndex(sparkSession, basePath)
+          val dataSchema = userSpecifiedSchema.orElse {
+            format.inferSchema(
+              sparkSession,
+              caseInsensitiveOptions,
+              fileCatalog.allFiles())
+          }.getOrElse {
+            throw new AnalysisException(
+              s"Unable to infer schema for $format at ${fileCatalog.allFiles().mkString(",")}. " +
                 "It must be specified manually")
+          }
+
+          HadoopFsRelation(
+            fileCatalog,
+            partitionSchema = fileCatalog.partitionSchema,
+            dataSchema = dataSchema,
+            bucketSpec = None,
+            format,
+            caseInsensitiveOptions)(sparkSession)
         }
 
-        HadoopFsRelation(
-          fileCatalog,
-          partitionSchema = fileCatalog.partitionSchema,
-          dataSchema = dataSchema,
-          bucketSpec = None,
-          format,
-          caseInsensitiveOptions)(sparkSession)
 
       // This is a non-streaming file based datasource.
       case (format: FileFormat, _) =>
+
         val allPaths = caseInsensitiveOptions.get("path") ++ paths
-        val hadoopConf = sparkSession.sessionState.newHadoopConf()
-        val globbedPaths = allPaths.flatMap(
-          DataSource.checkAndGlobPathIfNecessary(hadoopConf, _, checkFilesExist)).toArray
+        val (ugi, hadoopConf) = getUgiAndConf(allPaths)
 
-        val fileStatusCache = FileStatusCache.getOrCreate(sparkSession)
-        val (dataSchema, partitionSchema) = getOrInferFileFormatSchema(format, fileStatusCache)
+        val finalHadoopConf =
+          sparkSession
+            .sessionState
+            .newHadoopConfWithOptionsAndBaseConf(caseInsensitiveOptions, hadoopConf)
 
-        val fileCatalog = if (sparkSession.sqlContext.conf.manageFilesourcePartitions &&
+        KerberosFunction.executeWithUgi(ugi) {
+          val globbedPaths = allPaths.flatMap(
+            DataSource.checkAndGlobPathIfNecessary(finalHadoopConf, _, checkFilesExist)).toArray
+
+          val fileStatusCache = FileStatusCache.getOrCreate(sparkSession)
+          val (dataSchema, partitionSchema) = getOrInferFileFormatSchema(format, fileStatusCache)
+
+          val fileCatalog = if (sparkSession.sqlContext.conf.manageFilesourcePartitions &&
             catalogTable.isDefined && catalogTable.get.tracksPartitionsInCatalog) {
-          val defaultTableSize = sparkSession.sessionState.conf.defaultSizeInBytes
-          new CatalogFileIndex(
-            sparkSession,
-            catalogTable.get,
-            catalogTable.get.stats.map(_.sizeInBytes.toLong).getOrElse(defaultTableSize))
-        } else {
-          new InMemoryFileIndex(
-            sparkSession, globbedPaths, options, Some(partitionSchema), fileStatusCache)
-        }
+            val defaultTableSize = sparkSession.sessionState.conf.defaultSizeInBytes
+            new CatalogFileIndex(
+              sparkSession,
+              catalogTable.get,
+              finalHadoopConf,
+              catalogTable.get.stats.map(_.sizeInBytes.toLong).getOrElse(defaultTableSize))
+          } else {
+            new InMemoryFileIndex(
+              sparkSession,
+              globbedPaths,
+              options,
+              Some(partitionSchema),
+              finalHadoopConf,
+              fileStatusCache
+            )
+          }
 
-        HadoopFsRelation(
-          fileCatalog,
-          partitionSchema = partitionSchema,
-          dataSchema = dataSchema.asNullable,
-          bucketSpec = bucketSpec,
-          format,
-          caseInsensitiveOptions)(sparkSession)
+          HadoopFsRelation(
+            fileCatalog,
+            partitionSchema = partitionSchema,
+            dataSchema = dataSchema.asNullable,
+            bucketSpec = bucketSpec,
+            format,
+            caseInsensitiveOptions)(sparkSession)
+        }
 
       case _ =>
         throw new AnalysisException(
@@ -378,6 +402,26 @@ case class DataSource(
     }
 
     relation
+  }
+
+  protected def getUgiAndConf(
+                               paths: Iterable[String]
+                             ): (Option[UserGroupInformation], Configuration) = {
+
+    // Support multihdfs So load the config appropiate
+    val hdfsHost = paths.collectFirst {
+      case path if MultiHDFSConfig.extractHDFSHostFromPath(Option(path)).isDefined =>
+        MultiHDFSConfig.extractHDFSHostFromPath(Option(path)).get
+    }
+
+    logDebug(s"Obtaining ugi and conf for hdfsHost: $hdfsHost")
+
+    val hadoopConf = sparkSession.sessionState.newHadoopConf(hdfsHost)
+    val ugi = hdfsHost.flatMap { host =>
+      MultiHDFSConfig.getUgiForHost(host)
+    }
+
+    (ugi, hadoopConf)
   }
 
   /**
@@ -602,19 +646,20 @@ object DataSource extends Logging {
       hadoopConf: Configuration,
       path: String,
       checkFilesExist: Boolean): Seq[Path] = {
-    val hdfsPath = new Path(path)
-    val fs = hdfsPath.getFileSystem(hadoopConf)
-    val qualified = hdfsPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
-    val globPath = SparkHadoopUtil.get.globPathIfNecessary(fs, qualified)
 
-    if (globPath.isEmpty) {
-      throw new AnalysisException(s"Path does not exist: $qualified")
-    }
-    // Sufficient to check head of the globPath seq for non-glob scenario
-    // Don't need to check once again if files exist in streaming mode
-    if (checkFilesExist && !fs.exists(globPath.head)) {
-      throw new AnalysisException(s"Path does not exist: ${globPath.head}")
-    }
-    globPath
+      val hdfsPath = new Path(path)
+      val fs = hdfsPath.getFileSystem(hadoopConf)
+      val qualified = hdfsPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
+      val globPath = SparkHadoopUtil.get.globPathIfNecessary(fs, qualified)
+
+      if (globPath.isEmpty) {
+        throw new AnalysisException(s"Path does not exist: $qualified")
+      }
+      // Sufficient to check head of the globPath seq for non-glob scenario
+      // Don't need to check once again if files exist in streaming mode
+      if (checkFilesExist && !fs.exists(globPath.head)) {
+        throw new AnalysisException(s"Path does not exist: ${globPath.head}")
+      }
+      globPath
   }
 }
