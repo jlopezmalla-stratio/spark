@@ -10,6 +10,7 @@
 * Added performance tests PNF
 * Fix logs to be same as rest of Stratio platform
 * Add messages for errors in Vault
+* Add maximum retry limit for supervised drivers
 * Support for MultiHDFS
 
 ## 2.2.0.5 (upcoming)

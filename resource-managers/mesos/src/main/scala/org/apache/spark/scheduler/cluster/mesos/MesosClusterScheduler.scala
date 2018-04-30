@@ -696,35 +696,46 @@ private[spark] class MesosClusterScheduler(
         if (status.getReason == Reason.REASON_RECONCILIATION &&
           !pendingRecover.contains(taskId)) {
           // Task has already received update and no longer requires reconciliation.
+          logInfo(s"Driver $taskId has already received update and no longer requires reconciliation")
           return
         }
         val state = launchedDrivers(taskId)
         // Check if the driver is supervise enabled and can be relaunched.
         if (state.driverDescription.supervise && shouldRelaunch(status.getState)) {
           removeFromLaunchedDrivers(taskId)
-          state.finishDate = Some(new Date())
           val retryState: Option[MesosClusterRetryState] = state.driverDescription.retryState
           val (retries, waitTimeSec) = retryState
             .map { rs => (rs.retries + 1, Math.min(maxRetryWaitTime, rs.waitTime * 2)) }
             .getOrElse{ (1, 1) }
-          val nextRetry = new Date(new Date().getTime + waitTimeSec * 1000L)
-
           var sparkProperties = state.driverDescription.conf.getAll.toMap
-          if (ConfigSecurity.vaultURI.isDefined)
-          {
-            val vaultURI = ConfigSecurity.vaultURI.get
-            val role = sparkProperties("spark.secret.vault.role")
-            val driverSecretId =
-              VaultHelper.getSecretIdFromVault(role).get
-            val driverRoleId =
-              VaultHelper.getRoleIdFromVault(role).get
-            sparkProperties = sparkProperties.updated("spark.secret.roleID", driverRoleId)
-              .updated("spark.secret.secretID", driverSecretId)
+          // Get max limit of retries. If not defined, retry indefinitely
+          val maxRetryTimes = sparkProperties.getOrElse("spark.driver.retry.times.max", -1).toString.toInt
+
+          // Check if the driver has reached the max number of retries
+          if (maxRetryTimes >= 0 && retries > maxRetryTimes) {
+            removeFromPendingRetryDrivers(taskId)
+            pendingRecover -= taskId
+            logError(s"Max retries ($maxRetryTimes) reached for driver $taskId. Relaunch aborted")
+          } else {
+            logInfo(s"Driver $taskId starting retry $retries of $maxRetryTimes")
+            state.finishDate = Some(new Date())
+            val nextRetry = new Date(new Date().getTime + waitTimeSec * 1000L)
+
+            if (ConfigSecurity.vaultURI.isDefined) {
+              val vaultURI = ConfigSecurity.vaultURI.get
+              val role = sparkProperties("spark.secret.vault.role")
+              val driverSecretId =
+                VaultHelper.getSecretIdFromVault(role).get
+              val driverRoleId =
+                VaultHelper.getRoleIdFromVault(role).get
+              sparkProperties = sparkProperties.updated("spark.secret.roleID", driverRoleId)
+                .updated("spark.secret.secretID", driverSecretId)
+            }
+            else logDebug("No Vault information provided skipping new approle generation")
+            val newDriverDescription = state.driverDescription.copy(
+              retryState = Some(new MesosClusterRetryState(status, retries, nextRetry, waitTimeSec)))
+            addDriverToPending(newDriverDescription, taskId);
           }
-          else logDebug("No Vault information provided skipping new approle generation")
-          val newDriverDescription = state.driverDescription.copy(
-            retryState = Some(new MesosClusterRetryState(status, retries, nextRetry, waitTimeSec)))
-          addDriverToPending(newDriverDescription, taskId);
         } else if (TaskState.isFinished(mesosToTaskState(status.getState))) {
           removeFromLaunchedDrivers(taskId)
           state.finishDate = Some(new Date())
